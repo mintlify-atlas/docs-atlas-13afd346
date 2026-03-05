@@ -1,0 +1,424 @@
+---
+title: "Online File API"
+description: "NTQQOnlineApi for online file and folder transfers"
+---
+
+## Overview
+
+The Online File API (`NTQQOnlineApi`) provides methods for sending and receiving online files and folders. Unlike flash transfers, online files are delivered directly through QQ's messaging system.
+
+<Note>
+Online files are sent as special message types and can be received, refused, or canceled by recipients.
+</Note>
+
+## API Reference
+
+### sendOnlineFile
+
+Send an online file to a user or group.
+
+<ParamField path="peer" type="Peer" required>
+  Target peer (user or group)
+  
+  ```typescript
+  {
+    chatType: ChatType.Private | ChatType.Group,
+    peerUid: string
+  }
+  ```
+</ParamField>
+
+<ParamField path="filePath" type="string" required>
+  Local path to the file
+</ParamField>
+
+<ParamField path="fileName" type="string" required>
+  Display name for the file
+</ParamField>
+
+<ResponseField name="result" type="object">
+  Upload result
+  
+  <Expandable title="properties">
+    <ResponseField name="msgId" type="string">
+      Message identifier
+    </ResponseField>
+    
+    <ResponseField name="elementId" type="string">
+      File element identifier
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example:**
+
+```typescript
+import { ChatType } from 'napcat-core';
+
+const result = await core.apis.OnlineApi.sendOnlineFile(
+  { chatType: ChatType.Private, peerUid: 'u_123456' },
+  '/path/to/document.pdf',
+  'Important Document.pdf'
+);
+
+console.log('File sent, message ID:', result.msgId);
+```
+
+### sendOnlineFolder
+
+Send an entire folder as an online transfer.
+
+<ParamField path="peer" type="Peer" required>
+  Target peer
+</ParamField>
+
+<ParamField path="folderPath" type="string" required>
+  Local path to the folder
+</ParamField>
+
+<ParamField path="folderName" type="string" required>
+  Display name for the folder
+</ParamField>
+
+<ResponseField name="result" type="object">
+  Upload result with message and element IDs
+</ResponseField>
+
+**Example:**
+
+```typescript
+const result = await core.apis.OnlineApi.sendOnlineFolder(
+  { chatType: ChatType.Group, peerUid: 'g_123456' },
+  '/path/to/project',
+  'Project Files'
+);
+
+console.log('Folder sent');
+```
+
+### getOnlineFileMsg
+
+Retrieve online file messages for a peer.
+
+<ParamField path="peer" type="Peer" required>
+  Target peer
+</ParamField>
+
+<ResponseField name="messages" type="array">
+  Array of online file messages
+  
+  <Expandable title="Message Object">
+    <ResponseField name="msgId" type="string">
+      Message identifier
+    </ResponseField>
+    
+    <ResponseField name="elementId" type="string">
+      File element identifier
+    </ResponseField>
+    
+    <ResponseField name="fileName" type="string">
+      File name
+    </ResponseField>
+    
+    <ResponseField name="fileSize" type="number">
+      File size in bytes
+    </ResponseField>
+    
+    <ResponseField name="status" type="string">
+      Transfer status (pending, completed, refused, canceled)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example:**
+
+```typescript
+const messages = await core.apis.OnlineApi.getOnlineFileMsg(
+  { chatType: ChatType.Private, peerUid: 'u_123456' }
+);
+
+messages.forEach(msg => {
+  console.log(`${msg.fileName}: ${msg.status}`);
+});
+```
+
+### cancelMyOnlineFileMsg
+
+Cancel a sent online file transfer.
+
+<ParamField path="peer" type="Peer" required>
+  Target peer
+</ParamField>
+
+<ParamField path="msgId" type="string" required>
+  Message identifier
+</ParamField>
+
+**Example:**
+
+```typescript
+await core.apis.OnlineApi.cancelMyOnlineFileMsg(
+  { chatType: ChatType.Private, peerUid: 'u_123456' },
+  'msg_abc123'
+);
+
+console.log('File transfer canceled');
+```
+
+### refuseOnlineFileMsg
+
+Refuse an incoming online file transfer.
+
+<ParamField path="peer" type="Peer" required>
+  Source peer
+</ParamField>
+
+<ParamField path="msgId" type="string" required>
+  Message identifier
+</ParamField>
+
+<ParamField path="elementId" type="string" required>
+  File element identifier
+</ParamField>
+
+**Example:**
+
+```typescript
+await core.apis.OnlineApi.refuseOnlineFileMsg(
+  { chatType: ChatType.Private, peerUid: 'u_123456' },
+  'msg_abc123',
+  'elem_xyz789'
+);
+
+console.log('File transfer refused');
+```
+
+### receiveOnlineFileOrFolder
+
+Accept and receive an online file or folder.
+
+<ParamField path="peer" type="Peer" required>
+  Source peer
+</ParamField>
+
+<ParamField path="msgId" type="string" required>
+  Message identifier
+</ParamField>
+
+<ParamField path="elementId" type="string" required>
+  File element identifier
+</ParamField>
+
+<ResponseField name="downloadPath" type="string">
+  Local path where file was saved
+</ResponseField>
+
+**Example:**
+
+```typescript
+const downloadPath = await core.apis.OnlineApi.receiveOnlineFileOrFolder(
+  { chatType: ChatType.Private, peerUid: 'u_123456' },
+  'msg_abc123',
+  'elem_xyz789'
+);
+
+console.log('File saved to:', downloadPath);
+```
+
+### switchFileToOffline
+
+Switch an online file to offline mode (group files).
+
+<ParamField path="peer" type="Peer" required>
+  Group peer
+</ParamField>
+
+<ParamField path="msgId" type="string" required>
+  Message identifier
+</ParamField>
+
+**Example:**
+
+```typescript
+await core.apis.OnlineApi.switchFileToOffline(
+  { chatType: ChatType.Group, peerUid: 'g_123456' },
+  'msg_abc123'
+);
+
+console.log('File switched to offline mode');
+```
+
+## Complete Example
+
+```typescript
+import { NapCatCore, ChatType, Peer } from 'napcat-core';
+
+class OnlineFileManager {
+  constructor(private core: NapCatCore) {}
+  
+  // Send file with progress tracking
+  async sendFileWithProgress(peer: Peer, filePath: string, fileName: string) {
+    console.log(`Sending ${fileName}...`);
+    
+    const result = await this.core.apis.OnlineApi.sendOnlineFile(
+      peer,
+      filePath,
+      fileName
+    );
+    
+    console.log('File sent successfully');
+    return result;
+  }
+  
+  // Auto-accept files from specific users
+  async autoAcceptFiles(trustedUids: string[]) {
+    for (const uid of trustedUids) {
+      const peer = { chatType: ChatType.Private, peerUid: uid };
+      const messages = await this.core.apis.OnlineApi.getOnlineFileMsg(peer);
+      
+      for (const msg of messages) {
+        if (msg.status === 'pending') {
+          console.log(`Auto-accepting ${msg.fileName} from ${uid}`);
+          
+          const downloadPath = await this.core.apis.OnlineApi.receiveOnlineFileOrFolder(
+            peer,
+            msg.msgId,
+            msg.elementId
+          );
+          
+          console.log(`Saved to: ${downloadPath}`);
+        }
+      }
+    }
+  }
+  
+  // Monitor pending transfers
+  async listPendingTransfers(peer: Peer) {
+    const messages = await this.core.apis.OnlineApi.getOnlineFileMsg(peer);
+    
+    const pending = messages.filter(m => m.status === 'pending');
+    
+    console.log(`\nPending transfers: ${pending.length}`);
+    pending.forEach(msg => {
+      const sizeMB = (msg.fileSize / 1024 / 1024).toFixed(2);
+      console.log(`  - ${msg.fileName} (${sizeMB} MB)`);
+    });
+    
+    return pending;
+  }
+  
+  // Bulk file operations
+  async sendMultipleFiles(peer: Peer, files: Array<{path: string, name: string}>) {
+    const results = [];
+    
+    for (const file of files) {
+      const result = await this.sendFileWithProgress(peer, file.path, file.name);
+      results.push(result);
+      
+      // Small delay between sends
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    console.log(`Sent ${results.length} files`);
+    return results;
+  }
+}
+
+// Usage
+const fileManager = new OnlineFileManager(core);
+
+// Send a file
+await fileManager.sendFileWithProgress(
+  { chatType: ChatType.Private, peerUid: 'u_123456' },
+  '/documents/report.pdf',
+  'Monthly Report.pdf'
+);
+
+// Auto-accept from trusted users
+await fileManager.autoAcceptFiles(['u_123456', 'u_789012']);
+
+// Send multiple files
+await fileManager.sendMultipleFiles(
+  { chatType: ChatType.Group, peerUid: 'g_123456' },
+  [
+    { path: '/files/doc1.pdf', name: 'Document 1.pdf' },
+    { path: '/files/doc2.pdf', name: 'Document 2.pdf' },
+    { path: '/files/doc3.pdf', name: 'Document 3.pdf' }
+  ]
+);
+```
+
+## Use Cases
+
+### Direct File Sharing
+
+Send files directly to users without using group storage:
+
+```typescript
+// Send confidential document
+await core.apis.OnlineApi.sendOnlineFile(
+  { chatType: ChatType.Private, peerUid: 'u_client' },
+  '/contracts/nda.pdf',
+  'NDA - Confidential.pdf'
+);
+```
+
+### Automated File Distribution
+
+Automatically distribute files to team members:
+
+```typescript
+const teamMembers = ['u_123', 'u_456', 'u_789'];
+const reportPath = '/reports/weekly-report.pdf';
+
+for (const member of teamMembers) {
+  await core.apis.OnlineApi.sendOnlineFile(
+    { chatType: ChatType.Private, peerUid: member },
+    reportPath,
+    'Weekly Report.pdf'
+  );
+}
+```
+
+### File Reception Management
+
+Manage incoming file transfers:
+
+```typescript
+// Check pending files
+const peer = { chatType: ChatType.Private, peerUid: 'u_sender' };
+const messages = await core.apis.OnlineApi.getOnlineFileMsg(peer);
+
+for (const msg of messages) {
+  if (msg.status === 'pending') {
+    // Check file size before accepting
+    const sizeMB = msg.fileSize / 1024 / 1024;
+    
+    if (sizeMB < 100) {
+      // Accept small files
+      await core.apis.OnlineApi.receiveOnlineFileOrFolder(
+        peer, msg.msgId, msg.elementId
+      );
+    } else {
+      // Refuse large files
+      await core.apis.OnlineApi.refuseOnlineFileMsg(
+        peer, msg.msgId, msg.elementId
+      );
+    }
+  }
+}
+```
+
+## Related APIs
+
+<CardGroup cols={2}>
+  <Card title="File API" icon="file" href="/api/core/file">
+    General file operations
+  </Card>
+  <Card title="Flash Transfer API" icon="bolt" href="/api/core/flash">
+    Temporary flash transfers
+  </Card>
+  <Card title="Group API" icon="users" href="/api/core/group">
+    Group file management
+  </Card>
+</CardGroup>

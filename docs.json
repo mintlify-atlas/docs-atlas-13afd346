@@ -87,7 +87,10 @@
               "api/core/friend",
               "api/core/user",
               "api/core/file",
-              "api/core/system"
+              "api/core/system",
+              "api/core/collection",
+              "api/core/flash",
+              "api/core/online"
             ]
           },
           {

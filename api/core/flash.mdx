@@ -1,0 +1,370 @@
+---
+title: "Flash Transfer API"
+description: "NTQQFlashApi for flash file transfers and temporary sharing"
+---
+
+## Overview
+
+The Flash Transfer API (`NTQQFlashApi`) provides methods for creating and managing flash file transfers. Flash transfers allow temporary file sharing with automatic expiration.
+
+<Note>
+Flash transfers are temporary and files expire after a set period. They're ideal for quick file sharing without permanent storage.
+</Note>
+
+## API Reference
+
+### createFlashTransferUploadTask
+
+Create a flash transfer upload task for sharing files.
+
+<ParamField path="fileListToUpload" type="array" required>
+  Array of file paths to upload
+</ParamField>
+
+<ParamField path="thumbnailPath" type="string">
+  Path to thumbnail image (optional)
+</ParamField>
+
+<ParamField path="filesetName" type="string" required>
+  Name for the fileset
+</ParamField>
+
+<ResponseField name="fileSetId" type="string">
+  Unique identifier for the created fileset
+</ResponseField>
+
+**Example:**
+
+```typescript
+const fileSetId = await core.apis.FlashApi.createFlashTransferUploadTask(
+  ['/path/to/file1.pdf', '/path/to/file2.jpg'],
+  '/path/to/thumbnail.jpg',
+  'Project Documents'
+);
+
+console.log('Flash transfer created:', fileSetId);
+```
+
+### downloadFileSetBySetId
+
+Download a complete fileset by its ID.
+
+<ParamField path="fileSetId" type="string" required>
+  Fileset identifier
+</ParamField>
+
+<ResponseField name="downloadPath" type="string">
+  Local path where files were downloaded
+</ResponseField>
+
+**Example:**
+
+```typescript
+const downloadPath = await core.apis.FlashApi.downloadFileSetBySetId('fs_abc123');
+console.log('Files downloaded to:', downloadPath);
+```
+
+### getShareLinkBySetId
+
+Generate a shareable link for a fileset.
+
+<ParamField path="fileSetId" type="string" required>
+  Fileset identifier
+</ParamField>
+
+<ResponseField name="shareLink" type="string">
+  URL for sharing the fileset
+</ResponseField>
+
+<ResponseField name="shareCode" type="string">
+  Access code for the share link
+</ResponseField>
+
+**Example:**
+
+```typescript
+const { shareLink, shareCode } = await core.apis.FlashApi.getShareLinkBySetId('fs_abc123');
+
+console.log(`Share link: ${shareLink}`);
+console.log(`Access code: ${shareCode}`);
+```
+
+### fromShareLinkFindSetId
+
+Get fileset ID from a share link.
+
+<ParamField path="shareCode" type="string" required>
+  Share link access code
+</ParamField>
+
+<ResponseField name="fileSetId" type="string">
+  Fileset identifier
+</ResponseField>
+
+**Example:**
+
+```typescript
+const fileSetId = await core.apis.FlashApi.fromShareLinkFindSetId('abc123xyz');
+console.log('Fileset ID:', fileSetId);
+```
+
+### getFileListBySetId
+
+Get list of files in a fileset.
+
+<ParamField path="fileSetId" type="string" required>
+  Fileset identifier
+</ParamField>
+
+<ResponseField name="files" type="array">
+  Array of file objects
+  
+  <Expandable title="File Object">
+    <ResponseField name="fileId" type="string">
+      File identifier
+    </ResponseField>
+    
+    <ResponseField name="fileName" type="string">
+      File name
+    </ResponseField>
+    
+    <ResponseField name="fileSize" type="number">
+      File size in bytes
+    </ResponseField>
+    
+    <ResponseField name="uploadTime" type="number">
+      Upload timestamp
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example:**
+
+```typescript
+const files = await core.apis.FlashApi.getFileListBySetId('fs_abc123');
+
+files.forEach(file => {
+  console.log(`${file.fileName} (${file.fileSize} bytes)`);
+});
+```
+
+### getFileSetInfoBySetId
+
+Get detailed information about a fileset.
+
+<ParamField path="fileSetId" type="string" required>
+  Fileset identifier
+</ParamField>
+
+<ResponseField name="info" type="object">
+  Fileset information
+  
+  <Expandable title="properties">
+    <ResponseField name="fileSetId" type="string">
+      Fileset identifier
+    </ResponseField>
+    
+    <ResponseField name="filesetName" type="string">
+      Fileset name
+    </ResponseField>
+    
+    <ResponseField name="creatorUin" type="string">
+      Creator's UIN
+    </ResponseField>
+    
+    <ResponseField name="createTime" type="number">
+      Creation timestamp
+    </ResponseField>
+    
+    <ResponseField name="expireTime" type="number">
+      Expiration timestamp
+    </ResponseField>
+    
+    <ResponseField name="fileCount" type="number">
+      Number of files in the set
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example:**
+
+```typescript
+const info = await core.apis.FlashApi.getFileSetInfoBySetId('fs_abc123');
+
+console.log(`Fileset: ${info.filesetName}`);
+console.log(`Files: ${info.fileCount}`);
+console.log(`Expires: ${new Date(info.expireTime).toLocaleString()}`);
+```
+
+### sendFlashMessage
+
+Send a flash transfer as a message.
+
+<ParamField path="fileSetId" type="string" required>
+  Fileset identifier
+</ParamField>
+
+<ParamField path="peer" type="Peer" required>
+  Target peer (user or group)
+</ParamField>
+
+<ResponseField name="msgId" type="string">
+  Sent message identifier
+</ResponseField>
+
+**Example:**
+
+```typescript
+const msgId = await core.apis.FlashApi.sendFlashMessage(
+  'fs_abc123',
+  { chatType: ChatType.Private, peerUid: 'u_123456' }
+);
+
+console.log('Flash message sent:', msgId);
+```
+
+### getFileTransUrl
+
+Get download URL for files in a fileset.
+
+<ParamField path="fileSetId" type="string" required>
+  Fileset identifier
+</ParamField>
+
+<ParamField path="options" type="object">
+  Download options
+</ParamField>
+
+<ResponseField name="urls" type="array">
+  Array of download URLs for each file
+</ResponseField>
+
+**Example:**
+
+```typescript
+const urls = await core.apis.FlashApi.getFileTransUrl('fs_abc123', {});
+
+urls.forEach((url, index) => {
+  console.log(`File ${index + 1}: ${url}`);
+});
+```
+
+### createFileThumbnail
+
+Create a thumbnail for a file.
+
+<ParamField path="filePath" type="string" required>
+  Path to the file
+</ParamField>
+
+<ResponseField name="thumbnailPath" type="string">
+  Path to the generated thumbnail
+</ResponseField>
+
+**Example:**
+
+```typescript
+const thumbnailPath = await core.apis.FlashApi.createFileThumbnail('/path/to/image.jpg');
+console.log('Thumbnail created:', thumbnailPath);
+```
+
+## Complete Example
+
+```typescript
+import { NapCatCore, ChatType } from 'napcat-core';
+
+class FlashTransferManager {
+  constructor(private core: NapCatCore) {}
+  
+  // Create and share a flash transfer
+  async shareFiles(filePaths: string[], name: string, targetUid: string) {
+    // Create thumbnail for first file if it's an image
+    let thumbnail: string | undefined;
+    if (filePaths[0].match(/\.(jpg|jpeg|png|gif)$/i)) {
+      thumbnail = await this.core.apis.FlashApi.createFileThumbnail(filePaths[0]);
+    }
+    
+    // Create flash transfer
+    const fileSetId = await this.core.apis.FlashApi.createFlashTransferUploadTask(
+      filePaths,
+      thumbnail,
+      name
+    );
+    
+    // Get share link
+    const { shareLink, shareCode } = await this.core.apis.FlashApi.getShareLinkBySetId(fileSetId);
+    
+    console.log(`Created flash transfer: ${name}`);
+    console.log(`Share link: ${shareLink}`);
+    console.log(`Access code: ${shareCode}`);
+    
+    // Send as message
+    await this.core.apis.FlashApi.sendFlashMessage(
+      fileSetId,
+      { chatType: ChatType.Private, peerUid: targetUid }
+    );
+    
+    return { fileSetId, shareLink, shareCode };
+  }
+  
+  // Download files from share code
+  async downloadFromShareCode(shareCode: string) {
+    // Get fileset ID
+    const fileSetId = await this.core.apis.FlashApi.fromShareLinkFindSetId(shareCode);
+    
+    // Get file info
+    const info = await this.core.apis.FlashApi.getFileSetInfoBySetId(fileSetId);
+    console.log(`Downloading: ${info.filesetName}`);
+    console.log(`Files: ${info.fileCount}`);
+    
+    // Download files
+    const downloadPath = await this.core.apis.FlashApi.downloadFileSetBySetId(fileSetId);
+    console.log(`Downloaded to: ${downloadPath}`);
+    
+    return downloadPath;
+  }
+}
+```
+
+## Use Cases
+
+### Temporary File Sharing
+
+Flash transfers are perfect for sharing files that don't need permanent storage:
+
+```typescript
+// Share project files with team
+const { shareLink } = await flashManager.shareFiles(
+  ['/project/design.psd', '/project/mockup.png'],
+  'Design Files',
+  'u_teammate'
+);
+
+console.log('Share with team:', shareLink);
+```
+
+### Large File Distribution
+
+Use flash transfers for distributing large files without permanent storage:
+
+```typescript
+// Share presentation materials
+const files = [
+  '/presentation/slides.pptx',
+  '/presentation/video.mp4',
+  '/presentation/handout.pdf'
+];
+
+const result = await flashManager.shareFiles(files, 'Presentation Materials', 'u_client');
+```
+
+## Related APIs
+
+<CardGroup cols={2}>
+  <Card title="File API" icon="file" href="/api/core/file">
+    Permanent file operations
+  </Card>
+  <Card title="Online File API" icon="cloud" href="/api/core/online">
+    Online file transfers
+  </Card>
+</CardGroup>

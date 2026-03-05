@@ -1,0 +1,234 @@
+---
+title: "Collection API"
+description: "NTQQCollectionApi for managing QQ collections"
+---
+
+## Overview
+
+The Collection API (`NTQQCollectionApi`) provides methods for creating and managing QQ collections. Collections allow users to save messages, images, and other content for later reference.
+
+<Note>
+This API requires Node.js 18.0.0 or higher.
+</Note>
+
+## API Reference
+
+### createCollection
+
+Create a new collection with specified content.
+
+<ParamField path="authorUin" type="string" required>
+  Author's UIN (QQ number)
+</ParamField>
+
+<ParamField path="authorUid" type="string" required>
+  Author's UID (unique identifier)
+</ParamField>
+
+<ParamField path="authorName" type="string" required>
+  Author's display name
+</ParamField>
+
+<ParamField path="brief" type="string" required>
+  Brief description of the collection
+</ParamField>
+
+<ParamField path="rawData" type="string" required>
+  Raw data/content to be collected (JSON string)
+</ParamField>
+
+<ResponseField name="result" type="object">
+  Result of collection creation
+  
+  <Expandable title="properties">
+    <ResponseField name="collectionId" type="string">
+      Unique identifier for the created collection
+    </ResponseField>
+    
+    <ResponseField name="createTime" type="number">
+      Creation timestamp
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example:**
+
+```typescript
+const result = await core.apis.CollectionApi.createCollection(
+  '123456789',  // authorUin
+  'u_abc123',   // authorUid
+  'Alice',      // authorName
+  'Important conversation',  // brief
+  JSON.stringify({
+    type: 'message',
+    content: 'This is the saved message content'
+  })  // rawData
+);
+
+console.log('Collection created:', result.collectionId);
+```
+
+### getAllCollection
+
+Retrieve all collections for the current user.
+
+<ParamField path="category" type="number" required>
+  Collection category filter
+  
+  - `0` - All categories
+  - `1` - Messages
+  - `2` - Images
+  - `3` - Videos
+</ParamField>
+
+<ParamField path="count" type="number" required>
+  Maximum number of collections to retrieve
+</ParamField>
+
+<ResponseField name="collections" type="array">
+  Array of collection objects
+  
+  <Expandable title="Collection Object">
+    <ResponseField name="collectionId" type="string">
+      Unique identifier for the collection
+    </ResponseField>
+    
+    <ResponseField name="authorUin" type="string">
+      Author's UIN
+    </ResponseField>
+    
+    <ResponseField name="authorName" type="string">
+      Author's display name
+    </ResponseField>
+    
+    <ResponseField name="brief" type="string">
+      Brief description
+    </ResponseField>
+    
+    <ResponseField name="createTime" type="number">
+      Creation timestamp
+    </ResponseField>
+    
+    <ResponseField name="rawData" type="string">
+      Raw collection data (JSON string)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+**Example:**
+
+```typescript
+// Get all message collections (up to 100)
+const collections = await core.apis.CollectionApi.getAllCollection(1, 100);
+
+collections.forEach(collection => {
+  console.log(`Collection: ${collection.brief}`);
+  console.log(`Created: ${new Date(collection.createTime).toLocaleString()}`);
+  console.log(`Data: ${collection.rawData}`);
+});
+```
+
+## Use Cases
+
+### Save Important Messages
+
+Collections are useful for saving important messages that you want to reference later:
+
+```typescript
+// Save a message to collections
+async function saveMessage(msg: RawMessage) {
+  const content = {
+    type: 'message',
+    text: msg.elements.find(e => e.textElement)?.textElement?.content || '',
+    sender: msg.senderUin,
+    time: msg.msgTime
+  };
+  
+  await core.apis.CollectionApi.createCollection(
+    msg.senderUin,
+    msg.senderUid,
+    msg.sendNickName,
+    'Saved message',
+    JSON.stringify(content)
+  );
+}
+```
+
+### Organize Saved Content
+
+Retrieve and organize saved collections by category:
+
+```typescript
+// Get all saved messages
+const messageCollections = await core.apis.CollectionApi.getAllCollection(1, 50);
+
+// Filter by date
+const recentCollections = messageCollections.filter(c => {
+  const daysSinceCreation = (Date.now() - c.createTime) / (1000 * 60 * 60 * 24);
+  return daysSinceCreation <= 7; // Last 7 days
+});
+
+console.log(`You have ${recentCollections.length} collections from the last week`);
+```
+
+## Complete Example
+
+```typescript
+import { NapCatCore } from 'napcat-core';
+
+class CollectionManager {
+  constructor(private core: NapCatCore) {}
+  
+  // Save a message to collections
+  async saveMessage(message: RawMessage) {
+    const content = {
+      type: 'message',
+      text: this.extractTextContent(message),
+      sender: message.senderUin,
+      senderName: message.sendNickName,
+      timestamp: message.msgTime
+    };
+    
+    return await this.core.apis.CollectionApi.createCollection(
+      message.senderUin,
+      message.senderUid,
+      message.sendNickName,
+      `Message from ${message.sendNickName}`,
+      JSON.stringify(content)
+    );
+  }
+  
+  // Get all saved messages
+  async getSavedMessages(limit: number = 100) {
+    const collections = await this.core.apis.CollectionApi.getAllCollection(1, limit);
+    
+    return collections.map(c => {
+      const data = JSON.parse(c.rawData);
+      return {
+        id: c.collectionId,
+        text: data.text,
+        sender: data.senderName,
+        savedAt: new Date(c.createTime)
+      };
+    });
+  }
+  
+  private extractTextContent(msg: RawMessage): string {
+    return msg.elements
+      .filter(e => e.textElement)
+      .map(e => e.textElement!.content)
+      .join('');
+  }
+}
+```
+
+## Related APIs
+
+<CardGroup cols={2}>
+  <Card title="Message API" icon="message" href="/api/core/message">
+    Send and receive messages
+  </Card>
+  <Card title="System API" icon="gear" href="/api/core/system">
+    System utilities and operations
+  </Card>
+</CardGroup>
