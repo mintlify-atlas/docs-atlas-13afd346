@@ -1,0 +1,287 @@
+---
+title: WebUI Configuration
+description: Configure the NapCat WebUI management interface including authentication, access control, and port settings
+---
+
+## Overview
+
+The WebUI provides a web-based management interface for NapCat, allowing you to configure settings, view logs, manage your bot, and monitor status. The WebUI configuration file (`webui.json`) controls access, authentication, and appearance settings.
+
+## Configuration File Location
+
+```
+config/webui.json
+```
+
+## Configuration Schema
+
+### Server Settings
+
+<ParamField path="host" type="string" default="::">
+  Host address to bind the WebUI server. 
+  - `::` - Listen on all IPv4 and IPv6 interfaces
+  - `127.0.0.1` - Only accept local connections
+  - `0.0.0.0` - Listen on all IPv4 interfaces
+</ParamField>
+
+<ParamField path="port" type="number" default={6099}>
+  Port number for the WebUI server. The WebUI will automatically try the next port if this one is occupied.
+</ParamField>
+
+<ParamField path="disableWebUI" type="boolean" default={false}>
+  Completely disable the WebUI server. Useful for headless deployments where the WebUI is not needed.
+</ParamField>
+
+### Authentication
+
+<ParamField path="token" type="string" default="random">
+  Authentication token for accessing the WebUI. 
+  - On first run, a random 12-character token is automatically generated
+  - If set to the default value `napcat`, it will be replaced with a secure random token
+  - Can be overridden by the `NAPCAT_WEBUI_SECRET_KEY` environment variable
+  
+  **Security Note**: Keep this token secret and use a strong, unique value in production.
+</ParamField>
+
+<ParamField path="loginRate" type="number" default={10}>
+  Maximum number of login attempts allowed within a time window. Helps prevent brute-force attacks.
+</ParamField>
+
+### Access Control
+
+<ParamField path="accessControlMode" type="string" default="none">
+  Network access control mode:
+  - `none` - No IP-based restrictions (default)
+  - `whitelist` - Only allow IPs in the whitelist
+  - `blacklist` - Block IPs in the blacklist
+</ParamField>
+
+<ParamField path="ipWhitelist" type="array" default={[]}>
+  List of IP addresses or CIDR ranges allowed to access the WebUI when `accessControlMode` is set to `whitelist`.
+  
+  Example: `["192.168.1.100", "10.0.0.0/8"]`
+</ParamField>
+
+<ParamField path="ipBlacklist" type="array" default={[]}>
+  List of IP addresses or CIDR ranges blocked from accessing the WebUI when `accessControlMode` is set to `blacklist`.
+  
+  Example: `["203.0.113.0/24", "198.51.100.50"]`
+</ParamField>
+
+<ParamField path="enableXForwardedFor" type="boolean" default={false}>
+  Enable reading the real client IP from the `X-Forwarded-For` header. 
+  
+  Enable this when the WebUI is behind a reverse proxy (nginx, Apache, etc.).
+  
+  **Security Warning**: Only enable this if you trust your proxy. Attackers can spoof this header if not properly configured.
+</ParamField>
+
+### Auto-Login Settings
+
+<ParamField path="autoLoginAccount" type="string" default="">
+  QQ account number to automatically log in on startup. Leave empty to disable auto-login.
+  
+  Can be combined with environment variables:
+  - `NAPCAT_QUICK_ACCOUNT` - Account to auto-login
+  - `NAPCAT_QUICK_PASSWORD` - Password for auto-login (will be MD5 hashed)
+  - `NAPCAT_QUICK_PASSWORD_MD5` - Pre-computed MD5 hash of password
+</ParamField>
+
+### Appearance
+
+<ParamField path="theme" type="object">
+  Custom theme settings for the WebUI including colors and fonts.
+  
+  <Expandable title="Theme Options">
+    <ParamField path="theme.fontMode" type="string" default="system">
+      Font mode for the WebUI:
+      - `system` - Use system default fonts
+      - `aacute` - Use built-in "Aa偷吃可爱长大的" font
+      - `custom` - Use custom uploaded font
+    </ParamField>
+    
+    <ParamField path="theme.light" type="object">
+      CSS variables for light theme. Contains color values as CSS custom properties.
+    </ParamField>
+    
+    <ParamField path="theme.dark" type="object">
+      CSS variables for dark theme. Contains color values as CSS custom properties.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Configuration Examples
+
+<CodeGroup>
+```json Basic Configuration
+{
+  "host": "::",
+  "port": 6099,
+  "token": "your-secure-token-here",
+  "disableWebUI": false
+}
+```
+
+```json Local Access Only
+{
+  "host": "127.0.0.1",
+  "port": 6099,
+  "token": "local-access-token",
+  "accessControlMode": "none"
+}
+```
+
+```json With IP Whitelist
+{
+  "host": "0.0.0.0",
+  "port": 6099,
+  "token": "secure-token",
+  "accessControlMode": "whitelist",
+  "ipWhitelist": [
+    "192.168.1.0/24",
+    "10.0.0.5"
+  ]
+}
+```
+
+```json Behind Reverse Proxy
+{
+  "host": "127.0.0.1",
+  "port": 6099,
+  "token": "proxy-token",
+  "enableXForwardedFor": true,
+  "accessControlMode": "whitelist",
+  "ipWhitelist": ["192.168.1.0/24"]
+}
+```
+
+```json With Auto-Login
+{
+  "host": "::",
+  "port": 6099,
+  "token": "auto-login-token",
+  "autoLoginAccount": "123456789",
+  "loginRate": 10
+}
+```
+
+```json Production Configuration
+{
+  "host": "0.0.0.0",
+  "port": 6099,
+  "token": "very-secure-random-token-here",
+  "loginRate": 5,
+  "accessControlMode": "whitelist",
+  "ipWhitelist": [
+    "10.0.0.0/8",
+    "172.16.0.0/12",
+    "192.168.0.0/16"
+  ],
+  "enableXForwardedFor": true,
+  "disableWebUI": false
+}
+```
+</CodeGroup>
+
+## Accessing the WebUI
+
+After starting NapCat, the WebUI URL will be displayed in the console:
+
+```
+[NapCat] [WebUi] WebUi Token: your-token
+[NapCat] [WebUi] WebUi User Panel Url: http://127.0.0.1:6099/webui?token=your-token
+```
+
+Open this URL in your web browser to access the management interface.
+
+### Authentication Methods
+
+**Method 1: Query Parameter (Recommended for first access)**
+```
+http://127.0.0.1:6099/webui?token=your-token
+```
+
+**Method 2: Login Page**
+1. Navigate to `http://127.0.0.1:6099/webui`
+2. Enter the token from the configuration file
+3. Click login
+
+### Changing the Token
+
+You can change the WebUI token through:
+
+1. **Environment Variable** (highest priority):
+   ```bash
+   export NAPCAT_WEBUI_SECRET_KEY="new-token"
+   ```
+
+2. **Configuration File**:
+   Edit `config/webui.json` and update the `token` field, then restart NapCat.
+
+3. **Through WebUI**:
+   Once logged in, navigate to Settings → Security → Change Token.
+
+## Environment Variables
+
+The following environment variables override configuration file settings:
+
+<ParamField path="NAPCAT_WEBUI_SECRET_KEY" type="string">
+  Override the WebUI authentication token.
+</ParamField>
+
+<ParamField path="NAPCAT_WEBUI_PREFERRED_PORT" type="number">
+  Preferred port for the WebUI. If unavailable, falls back to the configured port.
+</ParamField>
+
+<ParamField path="NAPCAT_QUICK_ACCOUNT" type="string">
+  QQ account for auto-login (overrides `autoLoginAccount`).
+</ParamField>
+
+<ParamField path="NAPCAT_QUICK_PASSWORD" type="string">
+  Password for auto-login (will be MD5 hashed automatically).
+</ParamField>
+
+<ParamField path="NAPCAT_QUICK_PASSWORD_MD5" type="string">
+  Pre-computed MD5 hash of the password for auto-login.
+</ParamField>
+
+## SSL/HTTPS Support
+
+To enable HTTPS for the WebUI:
+
+1. Place your SSL certificate files in the config directory:
+   - `cert.pem` - Certificate file
+   - `key.pem` - Private key file
+
+2. NapCat will automatically detect these files and enable HTTPS mode.
+
+3. Access the WebUI using `https://` instead of `http://`:
+   ```
+   https://127.0.0.1:6099/webui?token=your-token
+   ```
+
+## Security Best Practices
+
+1. **Use Strong Tokens**: Generate a random, long token (at least 32 characters)
+2. **Enable Access Control**: Use IP whitelist in production environments
+3. **Use HTTPS**: Enable SSL certificates for encrypted connections
+4. **Limit Login Attempts**: Keep `loginRate` at a reasonable value (5-10)
+5. **Restrict Host**: Use `127.0.0.1` if only local access is needed
+6. **Reverse Proxy**: Put the WebUI behind nginx or Apache with proper security headers
+
+## Troubleshooting
+
+### Port Already in Use
+
+If the configured port is occupied, NapCat will automatically try the next available port (up to 100 attempts). Check the console output for the actual port being used.
+
+### Can't Access WebUI
+
+1. Check if `disableWebUI` is set to `false`
+2. Verify the `host` setting allows connections from your IP
+3. Check firewall rules and network connectivity
+4. Review access control settings (`accessControlMode`, whitelist/blacklist)
+
+### Token Not Working
+
+The token used for authentication is the one stored in memory when NapCat starts. If you manually edit `webui.json` while NapCat is running, the changes won't take effect until restart. Use the WebUI's token change feature for immediate effect.

@@ -1,0 +1,642 @@
+---
+title: Plugin Development
+description: Build plugins to extend NapCat functionality with custom features
+---
+
+## Overview
+
+NapCat's plugin system allows you to extend the bot's functionality through a modular architecture. Plugins can handle messages, events, register HTTP APIs, and interact with the core system.
+
+## Plugin Structure
+
+A NapCat plugin consists of:
+
+```
+my-plugin/
+├── package.json          # Plugin metadata
+├── index.ts             # Main entry point
+├── webui/               # WebUI assets (optional)
+│   ├── dashboard.html
+│   └── static/
+└── config.json          # Plugin configuration
+```
+
+### package.json
+
+Define your plugin metadata:
+
+```json
+{
+  "name": "my-napcat-plugin",
+  "plugin": "my-plugin",
+  "version": "1.0.0",
+  "description": "My awesome NapCat plugin",
+  "main": "index.ts",
+  "author": "Your Name",
+  "homepage": "https://github.com/yourusername/my-plugin",
+  "icon": "icon.png"
+}
+```
+
+## Plugin Module Interface
+
+From `types.ts:304-340`:
+
+```typescript
+export interface PluginModule {
+  // Required: Initialize plugin
+  plugin_init: (ctx: NapCatPluginContext) => void | Promise<void>;
+
+  // Optional: Handle messages
+  plugin_onmessage?: (ctx: NapCatPluginContext, event: OB11Message) => void | Promise<void>;
+
+  // Optional: Handle all events
+  plugin_onevent?: (ctx: NapCatPluginContext, event: OB11EmitEventContent) => void | Promise<void>;
+
+  // Optional: Cleanup on plugin unload
+  plugin_cleanup?: (ctx: NapCatPluginContext) => void | Promise<void>;
+
+  // Optional: Configuration schema
+  plugin_config_schema?: PluginConfigSchema;
+  plugin_config_ui?: PluginConfigSchema;
+
+  // Optional: Get/Set config
+  plugin_get_config?: (ctx: NapCatPluginContext) => unknown | Promise<unknown>;
+  plugin_set_config?: (ctx: NapCatPluginContext, config: unknown) => void | Promise<void>;
+
+  // Optional: Reactive config controller
+  plugin_config_controller?: (ctx: NapCatPluginContext, ui: PluginConfigUIController, initialConfig: Record<string, unknown>) => void | (() => void) | Promise<void | (() => void)>;
+
+  // Optional: Handle config changes
+  plugin_on_config_change?: (ctx: NapCatPluginContext, ui: PluginConfigUIController, key: string, value: unknown, currentConfig: Record<string, unknown>) => void | Promise<void>;
+}
+```
+
+## Plugin Context
+
+The plugin context provides access to core functionality:
+
+```typescript
+interface NapCatPluginContext {
+  core: NapCatCore;                    // Core NapCat instance
+  oneBot: NapCatOneBot11Adapter;      // OneBot adapter
+  actions: ActionMap;                  // Available actions
+  pluginName: string;                  // Your plugin ID
+  pluginPath: string;                  // Plugin directory path
+  configPath: string;                  // Config file path
+  dataPath: string;                    // Data directory path
+  NapCatConfig: NapCatConfigClass;    // Config builder
+  adapterName: string;                 // Adapter name
+  pluginManager: IPluginManager;       // Plugin manager
+  logger: PluginLogger;                // Plugin logger
+  router: PluginRouterRegistry;        // HTTP router
+  getPluginExports: <T>(pluginId: string) => T | undefined;  // Access other plugins
+}
+```
+
+## Basic Plugin Example
+
+From `index.ts:31-212`:
+
+<Steps>
+  <Step title="Initialize Plugin">
+    ```typescript index.ts
+    const startTime: number = Date.now();
+    let logger: PluginLogger | null = null;
+
+    interface MyPluginConfig {
+      prefix: string;
+      enableReply: boolean;
+      description: string;
+    }
+
+    let currentConfig: MyPluginConfig = {
+      prefix: '#mybot',
+      enableReply: true,
+      description: 'My plugin description',
+    };
+
+    export const plugin_init: PluginModule['plugin_init'] = async (ctx) => {
+      logger = ctx.logger;
+      logger.info('My plugin initialized');
+
+      // Load saved configuration
+      try {
+        if (fs.existsSync(ctx.configPath)) {
+          const savedConfig = JSON.parse(fs.readFileSync(ctx.configPath, 'utf-8'));
+          Object.assign(currentConfig, savedConfig);
+        }
+      } catch (e) {
+        logger?.warn('Failed to load config', e);
+      }
+    };
+    ```
+  </Step>
+
+  <Step title="Handle Messages">
+    ```typescript
+    export const plugin_onmessage: PluginModule['plugin_onmessage'] = async (ctx, event) => {
+      if (!currentConfig.enableReply) return;
+
+      const prefix = currentConfig.prefix;
+      if (event.post_type !== 'message' || !event.raw_message.startsWith(prefix)) {
+        return;
+      }
+
+      logger?.info('Processing command:', event.raw_message);
+
+      try {
+        // Get bot version
+        const versionInfo = await ctx.actions.call('get_version_info', undefined, ctx.adapterName, ctx.pluginManager.config);
+
+        const message = `Bot Version: ${versionInfo.app_version}\nUptime: ${formatUptime(Date.now() - startTime)}`;
+
+        // Send reply
+        await ctx.actions.call('send_msg', {
+          message,
+          message_type: event.message_type,
+          ...(event.message_type === 'group' ? { group_id: String(event.group_id) } : {}),
+          ...(event.message_type === 'private' ? { user_id: String(event.user_id) } : {}),
+        }, ctx.adapterName, ctx.pluginManager.config);
+
+        logger?.info('Reply sent successfully');
+      } catch (error) {
+        logger?.error('Error handling message:', error);
+      }
+    };
+
+    function formatUptime(ms: number): string {
+      const seconds = Math.floor(ms / 1000);
+      const minutes = Math.floor(seconds / 60);
+      const hours = Math.floor(minutes / 60);
+      const days = Math.floor(hours / 24);
+
+      if (days > 0) return `${days}天 ${hours % 24}小时`;
+      if (hours > 0) return `${hours}小时 ${minutes % 60}分钟`;
+      if (minutes > 0) return `${minutes}分钟`;
+      return `${seconds}秒`;
+    }
+    ```
+  </Step>
+
+  <Step title="Handle All Events">
+    ```typescript
+    export const plugin_onevent: PluginModule['plugin_onevent'] = async (ctx, event) => {
+      // Handle different event types
+      if (event.post_type === 'notice') {
+        if (event.notice_type === 'group_increase') {
+          logger?.info(`New member joined group: ${event.group_id}`);
+        } else if (event.notice_type === 'group_decrease') {
+          logger?.info(`Member left group: ${event.group_id}`);
+        }
+      } else if (event.post_type === 'request') {
+        if (event.request_type === 'friend') {
+          logger?.info(`Friend request from: ${event.user_id}`);
+        }
+      }
+    };
+    ```
+  </Step>
+
+  <Step title="Cleanup on Unload">
+    ```typescript
+    export const plugin_cleanup: PluginModule['plugin_cleanup'] = async (ctx) => {
+      logger?.info('Plugin cleanup started');
+      // Save any pending data
+      // Close connections
+      // Clear timers
+      logger?.info('Plugin cleanup completed');
+    };
+    ```
+  </Step>
+</Steps>
+
+## Configuration System
+
+### Define Configuration Schema
+
+```typescript
+export const plugin_config_ui: PluginConfigSchema = [
+  {
+    key: 'prefix',
+    type: 'text',
+    label: 'Command Prefix',
+    default: '#mybot',
+    description: 'The prefix for bot commands',
+  },
+  {
+    key: 'enableReply',
+    type: 'boolean',
+    label: 'Enable Auto Reply',
+    default: true,
+    description: 'Enable or disable automatic replies',
+  },
+  {
+    key: 'theme',
+    type: 'select',
+    label: 'Theme',
+    options: [
+      { label: 'Light', value: 'light' },
+      { label: 'Dark', value: 'dark' },
+    ],
+    default: 'light',
+  },
+  {
+    key: 'features',
+    type: 'multi-select',
+    label: 'Enabled Features',
+    options: [
+      { label: 'Feature 1', value: 'feat1' },
+      { label: 'Feature 2', value: 'feat2' },
+    ],
+    default: ['feat1'],
+  },
+];
+```
+
+### Get and Set Configuration
+
+```typescript
+export const plugin_get_config: PluginModule['plugin_get_config'] = async (ctx) => {
+  return currentConfig;
+};
+
+export const plugin_set_config: PluginModule['plugin_set_config'] = async (ctx, config) => {
+  currentConfig = config as MyPluginConfig;
+  
+  // Save to disk
+  try {
+    const configDir = path.dirname(ctx.configPath);
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+    fs.writeFileSync(ctx.configPath, JSON.stringify(config, null, 2), 'utf-8');
+  } catch (e) {
+    logger?.error('Failed to save config', e);
+    throw e;
+  }
+};
+```
+
+### Reactive Configuration
+
+From `index.ts:239-262`:
+
+```typescript
+export const plugin_config_controller: PluginModule['plugin_config_controller'] = async (ctx, ui, initialConfig) => {
+  logger?.info('Config controller initialized', initialConfig);
+
+  // Handle initial config
+  if (initialConfig['apiUrl']) {
+    await loadDynamicOptions(ui, initialConfig['apiUrl'] as string);
+  }
+
+  // Return cleanup function
+  return () => {
+    logger?.info('Config controller cleaned up');
+  };
+};
+
+export const plugin_on_config_change: PluginModule['plugin_on_config_change'] = async (ctx, ui, key, value, currentConfig) => {
+  logger?.info(`Config changed: ${key} = ${value}`);
+
+  if (key === 'apiUrl') {
+    // Update UI based on new value
+    await loadDynamicOptions(ui, value as string);
+  }
+};
+
+async function loadDynamicOptions(ui: PluginConfigUIController, apiUrl: string) {
+  if (!apiUrl) {
+    ui.removeField('apiEndpoints');
+    return;
+  }
+
+  // Add or update dynamic field
+  ui.addField({
+    key: 'apiEndpoints',
+    type: 'multi-select',
+    label: 'API Endpoints',
+    description: `Loaded from ${apiUrl}`,
+    options: [
+      { label: `${apiUrl}/users`, value: '/users' },
+      { label: `${apiUrl}/posts`, value: '/posts' },
+    ],
+    default: [],
+  }, 'apiUrl');
+}
+```
+
+## WebUI Integration
+
+### Register HTTP Routes
+
+From `index.ts:92-157`:
+
+<CodeGroup>
+```typescript API Routes (Authenticated)
+// Routes mounted at /api/Plugin/ext/{pluginId}/
+ctx.router.get('/status', (req, res) => {
+  res.json({
+    code: 0,
+    data: {
+      pluginName: ctx.pluginName,
+      uptime: Date.now() - startTime,
+      config: currentConfig,
+    },
+  });
+});
+
+ctx.router.post('/config', (req, res) => {
+  try {
+    const newConfig = req.body as Partial<MyPluginConfig>;
+    Object.assign(currentConfig, newConfig);
+    
+    // Save config
+    fs.writeFileSync(ctx.configPath, JSON.stringify(currentConfig, null, 2));
+    
+    res.json({ code: 0, message: 'Config saved successfully' });
+  } catch (e: any) {
+    res.status(500).json({ code: -1, message: e.message });
+  }
+});
+```
+
+```typescript API Routes (No Auth)
+// Routes mounted at /plugin/{pluginId}/api/
+ctx.router.getNoAuth('/public/info', (req, res) => {
+  res.json({
+    code: 0,
+    data: {
+      pluginName: ctx.pluginName,
+      uptime: Date.now() - startTime,
+    },
+  });
+});
+
+ctx.router.getNoAuth('/health', (req, res) => {
+  res.json({
+    code: 0,
+    data: {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+    },
+  });
+});
+```
+</CodeGroup>
+
+### Serve Static Files
+
+```typescript
+// Static files from directory (no auth required)
+// Accessible at /plugin/{pluginId}/files/static/
+ctx.router.static('/static', 'webui');
+
+// Dynamic in-memory files (no auth required)
+// Accessible at /plugin/{pluginId}/mem/dynamic/
+ctx.router.staticOnMem('/dynamic', [
+  {
+    path: '/info.json',
+    contentType: 'application/json',
+    content: () => JSON.stringify({
+      pluginName: ctx.pluginName,
+      generatedAt: new Date().toISOString(),
+      uptime: Date.now() - startTime,
+    }, null, 2),
+  },
+]);
+```
+
+### Register Plugin Pages
+
+```typescript
+ctx.router.page({
+  path: 'dashboard',
+  title: 'Plugin Dashboard',
+  icon: '📊',
+  htmlFile: 'webui/dashboard.html',
+  description: 'View plugin status and configuration',
+});
+```
+
+## Plugin Communication
+
+### Call Other Plugins
+
+From `index.ts:160-195`:
+
+```typescript
+ctx.router.get('/call-plugin/:pluginId', (req, res) => {
+  const { pluginId } = req.params;
+
+  if (!pluginId) {
+    res.status(400).json({ code: -1, message: 'Plugin ID is required' });
+    return;
+  }
+
+  // Get other plugin's exports
+  const targetPlugin = ctx.getPluginExports<PluginModule>(pluginId);
+
+  if (!targetPlugin) {
+    res.status(404).json({ code: -1, message: `Plugin '${pluginId}' not found` });
+    return;
+  }
+
+  // Check available methods
+  res.json({
+    code: 0,
+    data: {
+      pluginId,
+      hasInit: typeof targetPlugin.plugin_init === 'function',
+      hasOnMessage: typeof targetPlugin.plugin_onmessage === 'function',
+      hasOnEvent: typeof targetPlugin.plugin_onevent === 'function',
+    },
+  });
+});
+```
+
+## Advanced Features
+
+### Access Core APIs
+
+```typescript
+// Send messages
+await ctx.actions.call('send_msg', {
+  message: 'Hello!',
+  message_type: 'group',
+  group_id: '123456',
+}, ctx.adapterName, ctx.pluginManager.config);
+
+// Get group list
+const groups = await ctx.actions.call('get_group_list', undefined, ctx.adapterName, ctx.pluginManager.config);
+
+// Get user info
+const userInfo = await ctx.actions.call('get_stranger_info', {
+  user_id: '123456',
+}, ctx.adapterName, ctx.pluginManager.config);
+```
+
+### Use Plugin Logger
+
+```typescript
+ctx.logger.info('Informational message');
+ctx.logger.warn('Warning message');
+ctx.logger.error('Error message', errorObject);
+ctx.logger.debug('Debug information');
+```
+
+### Store Plugin Data
+
+```typescript
+const dataFile = path.join(ctx.dataPath, 'plugin-data.json');
+
+// Save data
+fs.writeFileSync(dataFile, JSON.stringify(data, null, 2));
+
+// Load data
+if (fs.existsSync(dataFile)) {
+  const data = JSON.parse(fs.readFileSync(dataFile, 'utf-8'));
+}
+```
+
+## Complete Plugin Example
+
+```typescript index.ts
+import type { PluginModule, PluginLogger, PluginConfigSchema } from 'napcat-types/napcat-onebot/network/plugin-manger';
+import type { OB11Message } from 'napcat-types/napcat-onebot/types';
+import fs from 'fs';
+import path from 'path';
+
+let logger: PluginLogger | null = null;
+const commandHistory: Map<string, number> = new Map();
+
+interface Config {
+  prefix: string;
+  cooldown: number;
+  enableLogging: boolean;
+}
+
+let config: Config = {
+  prefix: '!',
+  cooldown: 5000,
+  enableLogging: true,
+};
+
+export const plugin_config_ui: PluginConfigSchema = [
+  {
+    key: 'prefix',
+    type: 'text',
+    label: 'Command Prefix',
+    default: '!',
+  },
+  {
+    key: 'cooldown',
+    type: 'number',
+    label: 'Cooldown (ms)',
+    default: 5000,
+  },
+  {
+    key: 'enableLogging',
+    type: 'boolean',
+    label: 'Enable Logging',
+    default: true,
+  },
+];
+
+export const plugin_init: PluginModule['plugin_init'] = async (ctx) => {
+  logger = ctx.logger;
+  logger.info('Echo plugin initialized');
+
+  // Load config
+  try {
+    if (fs.existsSync(ctx.configPath)) {
+      const saved = JSON.parse(fs.readFileSync(ctx.configPath, 'utf-8'));
+      Object.assign(config, saved);
+    }
+  } catch (e) {
+    logger.warn('Failed to load config');
+  }
+
+  // Register API endpoint
+  ctx.router.get('/stats', (req, res) => {
+    res.json({
+      code: 0,
+      data: {
+        totalCommands: commandHistory.size,
+        config,
+      },
+    });
+  });
+};
+
+export const plugin_onmessage: PluginModule['plugin_onmessage'] = async (ctx, event) => {
+  const msg = event.raw_message;
+  if (!msg.startsWith(config.prefix)) return;
+
+  const userId = event.user_id.toString();
+  const now = Date.now();
+  const lastCmd = commandHistory.get(userId) || 0;
+
+  // Cooldown check
+  if (now - lastCmd < config.cooldown) {
+    if (config.enableLogging) {
+      logger?.info(`User ${userId} is on cooldown`);
+    }
+    return;
+  }
+
+  commandHistory.set(userId, now);
+
+  const command = msg.slice(config.prefix.length).trim();
+  const reply = `You said: ${command}`;
+
+  await ctx.actions.call('send_msg', {
+    message: reply,
+    message_type: event.message_type,
+    ...(event.message_type === 'group' ? { group_id: String(event.group_id) } : {}),
+    ...(event.message_type === 'private' ? { user_id: String(event.user_id) } : {}),
+  }, ctx.adapterName, ctx.pluginManager.config);
+
+  if (config.enableLogging) {
+    logger?.info(`Processed command from ${userId}: ${command}`);
+  }
+};
+
+export const plugin_get_config: PluginModule['plugin_get_config'] = async () => config;
+
+export const plugin_set_config: PluginModule['plugin_set_config'] = async (ctx, newConfig) => {
+  config = newConfig as Config;
+  fs.writeFileSync(ctx.configPath, JSON.stringify(config, null, 2));
+};
+
+export const plugin_cleanup: PluginModule['plugin_cleanup'] = async (ctx) => {
+  logger?.info('Echo plugin shutting down');
+  commandHistory.clear();
+};
+```
+
+<Warning>
+  Always implement proper error handling and cleanup in your plugins. Unhandled errors can crash the entire bot.
+</Warning>
+
+## Best Practices
+
+1. **Use the logger** instead of `console.log` for better log management
+2. **Handle errors gracefully** - wrap async operations in try-catch
+3. **Validate configuration** before using config values
+4. **Clean up resources** in `plugin_cleanup` (timers, connections, files)
+5. **Use cooldowns** to prevent command spam
+6. **Store persistent data** in `ctx.dataPath`
+7. **Document your plugin** with clear descriptions and examples
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Packet Inspection" icon="magnifying-glass" href="/guides/packet-inspection">
+    Monitor protocol packets
+  </Card>
+  <Card title="Message Handling" icon="message" href="/guides/message-handling">
+    Learn about message APIs
+  </Card>
+</CardGroup>

@@ -1,0 +1,398 @@
+---
+title: WebSocket
+description: Configure WebSocket connections for real-time event streaming in NapCat
+---
+
+## Overview
+
+NapCat supports WebSocket connections in two modes:
+- **WebSocket Server** - NapCat listens for incoming connections
+- **WebSocket Client** (Reverse WebSocket) - NapCat connects to your server
+
+WebSocket connections provide real-time event streaming and bidirectional API communication.
+
+## WebSocket Server
+
+### Configuration
+
+Configure NapCat to accept WebSocket connections:
+
+```json
+{
+  "network": {
+    "websocketServers": [
+      {
+        "name": "websocket-server",
+        "enable": true,
+        "host": "127.0.0.1",
+        "port": 3001,
+        "messagePostFormat": "array",
+        "reportSelfMessage": false,
+        "token": "your_secret_token",
+        "enableForcePushEvent": true,
+        "debug": false,
+        "heartInterval": 30000
+      }
+    ]
+  }
+}
+```
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enable` | boolean | `false` | Enable the WebSocket server |
+| `host` | string | `127.0.0.1` | Host address to bind |
+| `port` | number | `3001` | Port to listen on |
+| `token` | string | `""` | Access token for authentication |
+| `heartInterval` | number | `30000` | Heartbeat interval in milliseconds |
+| `messagePostFormat` | string | `array` | Message format |
+| `reportSelfMessage` | boolean | `false` | Report messages sent by self |
+| `enableForcePushEvent` | boolean | `true` | Force push events |
+| `debug` | boolean | `false` | Enable debug logging |
+
+### Connecting to WebSocket Server
+
+#### Event WebSocket (Receives Events)
+
+```javascript
+const ws = new WebSocket('ws://127.0.0.1:3001/?access_token=your_secret_token');
+
+ws.on('open', () => {
+  console.log('Connected to NapCat');
+});
+
+ws.on('message', (data) => {
+  const event = JSON.parse(data);
+  console.log('Received event:', event);
+  
+  if (event.post_type === 'message') {
+    console.log('New message:', event.message);
+  }
+});
+```
+
+#### API WebSocket (For API Calls)
+
+```javascript
+const apiWs = new WebSocket('ws://127.0.0.1:3001/api?access_token=your_secret_token');
+
+apiWs.on('open', () => {
+  // Send API request
+  apiWs.send(JSON.stringify({
+    action: 'send_private_msg',
+    params: {
+      user_id: 12345678,
+      message: 'Hello!'
+    },
+    echo: 'request-1'
+  }));
+});
+
+apiWs.on('message', (data) => {
+  const response = JSON.parse(data);
+  console.log('API response:', response);
+});
+```
+
+## WebSocket Client (Reverse WebSocket)
+
+### Configuration
+
+Configure NapCat to connect to your WebSocket server:
+
+```json
+{
+  "network": {
+    "websocketClients": [
+      {
+        "name": "websocket-client",
+        "enable": true,
+        "url": "ws://localhost:8082",
+        "messagePostFormat": "array",
+        "reportSelfMessage": false,
+        "reconnectInterval": 5000,
+        "token": "your_secret_token",
+        "debug": false,
+        "heartInterval": 30000
+      }
+    ]
+  }
+}
+```
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enable` | boolean | `false` | Enable reverse WebSocket |
+| `url` | string | `ws://localhost:8082` | Target WebSocket server URL |
+| `token` | string | `""` | Access token for authentication |
+| `reconnectInterval` | number | `5000` | Reconnection interval in milliseconds |
+| `heartInterval` | number | `30000` | Heartbeat interval in milliseconds |
+| `messagePostFormat` | string | `array` | Message format |
+| `reportSelfMessage` | boolean | `false` | Report messages sent by self |
+| `debug` | boolean | `false` | Enable debug logging |
+
+### Server Implementation
+
+Create a WebSocket server to receive connections from NapCat:
+
+```javascript
+const WebSocket = require('ws');
+const wss = new WebSocket.Server({ port: 8082 });
+
+wss.on('connection', (ws, req) => {
+  // Check authentication
+  const url = new URL(req.url, 'ws://localhost');
+  const token = url.searchParams.get('access_token') || 
+                req.headers.authorization?.replace('Bearer ', '');
+  
+  console.log('NapCat connected');
+  console.log('Headers:', req.headers);
+  
+  ws.on('message', (data) => {
+    const event = JSON.parse(data);
+    
+    if (event.post_type === 'meta_event' && event.meta_event_type === 'lifecycle') {
+      console.log('Lifecycle event:', event.sub_type);
+    } else if (event.post_type === 'message') {
+      console.log('Message received:', event.message);
+    }
+  });
+  
+  ws.on('close', () => {
+    console.log('NapCat disconnected');
+  });
+});
+
+console.log('WebSocket server listening on port 8082');
+```
+
+## Authentication
+
+### Authorization Header
+
+NapCat sends the token in the `Authorization` header:
+
+```javascript
+// Server-side check
+const authHeader = req.headers.authorization;
+if (authHeader && authHeader.startsWith('Bearer ')) {
+  const token = authHeader.substring(7);
+  if (token === 'your_secret_token') {
+    // Authenticated
+  }
+}
+```
+
+### Query Parameter
+
+Or check the `access_token` query parameter:
+
+```javascript
+const url = new URL(req.url, 'ws://localhost');
+const token = url.searchParams.get('access_token');
+```
+
+## Events and Lifecycle
+
+### Connection Event
+
+When a connection is established, NapCat sends a lifecycle event:
+
+```json
+{
+  "time": 1234567890,
+  "self_id": 123456789,
+  "post_type": "meta_event",
+  "meta_event_type": "lifecycle",
+  "sub_type": "connect"
+}
+```
+
+### Heartbeat Events
+
+NapCat sends periodic heartbeat events based on `heartInterval`:
+
+```json
+{
+  "time": 1234567890,
+  "self_id": 123456789,
+  "post_type": "meta_event",
+  "meta_event_type": "heartbeat",
+  "status": {
+    "online": true,
+    "good": true
+  },
+  "interval": 30000
+}
+```
+
+### Receiving Messages
+
+Message events are pushed automatically:
+
+```json
+{
+  "time": 1234567890,
+  "self_id": 123456789,
+  "post_type": "message",
+  "message_type": "private",
+  "sub_type": "friend",
+  "message_id": 12345,
+  "user_id": 87654321,
+  "message": "Hello!",
+  "raw_message": "Hello!",
+  "font": 0,
+  "sender": {
+    "user_id": 87654321,
+    "nickname": "Friend"
+  }
+}
+```
+
+## Making API Calls
+
+### Through WebSocket Connection
+
+Send API requests through the WebSocket:
+
+```javascript
+ws.send(JSON.stringify({
+  action: 'send_group_msg',
+  params: {
+    group_id: 12345678,
+    message: 'Hello group!'
+  },
+  echo: 'msg-001'
+}));
+
+ws.on('message', (data) => {
+  const response = JSON.parse(data);
+  
+  if (response.echo === 'msg-001') {
+    console.log('Message sent:', response.data);
+  }
+});
+```
+
+### Response Format
+
+```json
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": {
+    "message_id": 123456
+  },
+  "echo": "msg-001"
+}
+```
+
+## Connection Headers
+
+NapCat sends custom headers when connecting (reverse WebSocket):
+
+```javascript
+{
+  'X-Self-ID': '123456789',
+  'Authorization': 'Bearer your_secret_token',
+  'x-client-role': 'Universal',
+  'User-Agent': 'OneBot/11'
+}
+```
+
+## Automatic Reconnection
+
+For reverse WebSocket, NapCat automatically reconnects if the connection drops:
+
+- Reconnection occurs after `reconnectInterval` milliseconds (default: 5000ms)
+- Logs show: `在 5 秒后尝试重新连接`
+- Connection errors trigger reconnection
+
+## Multiple Connections
+
+You can configure multiple WebSocket connections:
+
+```json
+{
+  "network": {
+    "websocketServers": [
+      {
+        "name": "main-ws",
+        "enable": true,
+        "port": 3001
+      },
+      {
+        "name": "backup-ws",
+        "enable": true,
+        "port": 3002
+      }
+    ],
+    "websocketClients": [
+      {
+        "name": "bot-server-1",
+        "enable": true,
+        "url": "ws://server1.example.com:8082"
+      },
+      {
+        "name": "bot-server-2",
+        "enable": true,
+        "url": "ws://server2.example.com:8082"
+      }
+    ]
+  }
+}
+```
+
+## Implementation Details
+
+- WebSocket Server: `packages/napcat-onebot/network/websocket-server.ts`
+- WebSocket Client: `packages/napcat-onebot/network/websocket-client.ts`
+- Maximum payload size: **50MB**
+- Uses `ws` library for WebSocket implementation
+- Supports JSON5 for relaxed message parsing
+
+## Best Practices
+
+1. **Use authentication** - Always set a token in production
+2. **Handle reconnections** - Implement reconnection logic in your client
+3. **Monitor heartbeats** - Use heartbeat events to detect connection issues
+4. **Set appropriate intervals** - Balance between responsiveness and network overhead
+5. **Handle lifecycle events** - Track connection state changes
+6. **Use echo parameters** - Track API request/response pairs
+7. **Implement error handling** - Handle WebSocket errors and closures gracefully
+
+## Troubleshooting
+
+### Connection Refused
+
+- Check that the WebSocket server is enabled and running
+- Verify the host and port configuration
+- Check firewall settings
+
+### Authentication Failed
+
+- Verify the token matches between client and server
+- Check that the token is sent in the correct format
+- Look for `token验证失败` in error messages
+
+### No Events Received
+
+- Connect to the root path (`/`), not `/api`
+- Verify `reportSelfMessage` setting if expecting self-messages
+- Check that the connection is established (look for lifecycle event)
+
+### Frequent Disconnections
+
+- Check network stability
+- Increase `heartInterval` to reduce overhead
+- Monitor server logs for error messages
+
+## Next Steps
+
+- Learn about [HTTP POST webhooks](/api/network/webhook) for one-way event delivery
+- Explore [HTTP API](/api/network/http) for request-based communication
+- Check [troubleshooting guide](/resources/troubleshooting) for common issues

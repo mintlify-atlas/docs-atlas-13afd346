@@ -1,0 +1,483 @@
+---
+title: Production Deployment
+description: Deploy NapCat in production environments with systemd, PM2, or Docker
+---
+
+## Overview
+
+NapCat can be deployed in various production environments. This guide covers deployment methods, environment configuration, monitoring, and security best practices.
+
+## Deployment Methods
+
+### Using systemd (Linux)
+
+<Steps>
+  <Step title="Create Service File">
+    Create a systemd service file at `/etc/systemd/system/napcat.service`:
+
+    ```ini
+    [Unit]
+    Description=NapCat QQ Bot Service
+    After=network.target
+
+    [Service]
+    Type=simple
+    User=napcat
+    WorkingDirectory=/opt/napcat
+    ExecStart=/usr/bin/node /opt/napcat/napcat.js
+    Restart=always
+    RestartSec=10
+    StandardOutput=journal
+    StandardError=journal
+    SyslogIdentifier=napcat
+
+    # Environment variables
+    Environment="NODE_ENV=production"
+    Environment="NAPCAT_DISABLE_BYPASS=0"
+
+    [Install]
+    WantedBy=multi-user.target
+    ```
+  </Step>
+
+  <Step title="Enable and Start Service">
+    ```bash
+    # Reload systemd configuration
+    sudo systemctl daemon-reload
+
+    # Enable service to start on boot
+    sudo systemctl enable napcat
+
+    # Start the service
+    sudo systemctl start napcat
+
+    # Check service status
+    sudo systemctl status napcat
+    ```
+  </Step>
+
+  <Step title="View Logs">
+    ```bash
+    # View real-time logs
+    sudo journalctl -u napcat -f
+
+    # View logs from specific time
+    sudo journalctl -u napcat --since "1 hour ago"
+    ```
+  </Step>
+</Steps>
+
+### Using PM2
+
+PM2 is a production process manager for Node.js applications.
+
+<Steps>
+  <Step title="Install PM2">
+    ```bash
+    npm install -g pm2
+    ```
+  </Step>
+
+  <Step title="Create Ecosystem File">
+    Create `ecosystem.config.js` in your NapCat directory:
+
+    ```javascript ecosystem.config.js
+    module.exports = {
+      apps: [{
+        name: 'napcat',
+        script: './napcat.js',
+        instances: 1,
+        exec_mode: 'fork',
+        autorestart: true,
+        watch: false,
+        max_memory_restart: '1G',
+        env: {
+          NODE_ENV: 'production',
+          NAPCAT_DISABLE_BYPASS: '0'
+        },
+        error_file: './logs/pm2-error.log',
+        out_file: './logs/pm2-out.log',
+        log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
+      }]
+    }
+    ```
+  </Step>
+
+  <Step title="Start with PM2">
+    ```bash
+    # Start application
+    pm2 start ecosystem.config.js
+
+    # Save PM2 configuration
+    pm2 save
+
+    # Setup PM2 to start on system boot
+    pm2 startup
+    ```
+  </Step>
+
+  <Step title="PM2 Management Commands">
+    ```bash
+    # View status
+    pm2 status
+
+    # View logs
+    pm2 logs napcat
+
+    # Restart
+    pm2 restart napcat
+
+    # Stop
+    pm2 stop napcat
+
+    # Monitor resources
+    pm2 monit
+    ```
+  </Step>
+</Steps>
+
+### Using Docker
+
+<Steps>
+  <Step title="Create Dockerfile">
+    ```dockerfile Dockerfile
+    FROM node:20-alpine
+
+    # Install dependencies
+    RUN apk add --no-cache \
+        ffmpeg \
+        chromium \
+        nss \
+        freetype \
+        harfbuzz \
+        ca-certificates \
+        ttf-freefont
+
+    # Set working directory
+    WORKDIR /app
+
+    # Copy application files
+    COPY package*.json ./
+    RUN npm ci --only=production
+
+    COPY . .
+
+    # Create directories
+    RUN mkdir -p /app/data /app/logs /app/config
+
+    # Set environment variables
+    ENV NODE_ENV=production
+    ENV NAPCAT_DISABLE_BYPASS=0
+
+    # Expose WebUI port (default 6099)
+    EXPOSE 6099
+
+    # Start NapCat
+    CMD ["node", "napcat.js"]
+    ```
+  </Step>
+
+  <Step title="Create Docker Compose File">
+    ```yaml docker-compose.yml
+    version: '3.8'
+
+    services:
+      napcat:
+        build: .
+        container_name: napcat
+        restart: unless-stopped
+        ports:
+          - "6099:6099"    # WebUI
+          - "3000:3000"    # HTTP API (optional)
+          - "3001:3001"    # WebSocket (optional)
+        volumes:
+          - ./data:/app/data
+          - ./logs:/app/logs
+          - ./config:/app/config
+        environment:
+          - NODE_ENV=production
+          - NAPCAT_DISABLE_BYPASS=0
+        networks:
+          - napcat_network
+
+    networks:
+      napcat_network:
+        driver: bridge
+    ```
+  </Step>
+
+  <Step title="Deploy with Docker Compose">
+    ```bash
+    # Build and start
+    docker-compose up -d
+
+    # View logs
+    docker-compose logs -f napcat
+
+    # Restart
+    docker-compose restart napcat
+
+    # Stop
+    docker-compose down
+    ```
+  </Step>
+</Steps>
+
+## Environment Variables
+
+Configure NapCat behavior using environment variables:
+
+<CodeGroup>
+```bash systemd
+# In /etc/systemd/system/napcat.service
+Environment="NODE_ENV=production"
+Environment="NAPCAT_DISABLE_BYPASS=0"
+Environment="NAPCAT_LOG_LEVEL=info"
+```
+
+```bash PM2
+# In ecosystem.config.js
+env: {
+  NODE_ENV: 'production',
+  NAPCAT_DISABLE_BYPASS: '0',
+  NAPCAT_LOG_LEVEL: 'info'
+}
+```
+
+```bash Docker
+# In docker-compose.yml
+environment:
+  - NODE_ENV=production
+  - NAPCAT_DISABLE_BYPASS=0
+  - NAPCAT_LOG_LEVEL=info
+```
+</CodeGroup>
+
+### Available Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|----------|
+| `NODE_ENV` | Node.js environment mode | `development` |
+| `NAPCAT_DISABLE_BYPASS` | Disable protocol bypass features | `0` (enabled) |
+| `NAPCAT_LOG_LEVEL` | Logging level (debug/info/warn/error) | `info` |
+
+<Note>
+  From `napcat.ts:50-58`, bypass features can be controlled via environment variable or config file. The bypass system enables protocol optimizations.
+</Note>
+
+## Monitoring
+
+### Health Checks
+
+Implement health monitoring to ensure service availability:
+
+```typescript
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  })
+})
+```
+
+### Log Monitoring
+
+<CodeGroup>
+```bash systemd
+# Monitor logs in real-time
+journalctl -u napcat -f
+
+# Search for errors
+journalctl -u napcat | grep ERROR
+```
+
+```bash PM2
+# Real-time logs
+pm2 logs napcat
+
+# Error logs only
+pm2 logs napcat --err
+```
+
+```bash Docker
+# Container logs
+docker logs -f napcat
+
+# Last 100 lines
+docker logs --tail 100 napcat
+```
+</CodeGroup>
+
+### Resource Monitoring
+
+```bash
+# System resources with PM2
+pm2 monit
+
+# Docker resource usage
+docker stats napcat
+
+# System-wide monitoring
+htop
+```
+
+## Security Best Practices
+
+<Warning>
+  Always secure your NapCat deployment in production environments!
+</Warning>
+
+### 1. Network Security
+
+```yaml docker-compose.yml
+services:
+  napcat:
+    # Only expose necessary ports
+    ports:
+      - "127.0.0.1:6099:6099"  # WebUI only on localhost
+    # Use internal network for service communication
+    networks:
+      - internal_network
+
+networks:
+  internal_network:
+    internal: true
+```
+
+### 2. File Permissions
+
+```bash
+# Set appropriate ownership
+sudo chown -R napcat:napcat /opt/napcat
+
+# Restrict permissions
+chmod 750 /opt/napcat
+chmod 640 /opt/napcat/config/*.json
+```
+
+### 3. Authentication
+
+Enable WebUI authentication in your config:
+
+```json config.json
+{
+  "webui": {
+    "token": "your-secure-random-token-here",
+    "loginRequired": true
+  }
+}
+```
+
+### 4. Firewall Configuration
+
+```bash
+# UFW (Ubuntu)
+sudo ufw allow from 192.168.1.0/24 to any port 6099
+sudo ufw enable
+
+# firewalld (CentOS/RHEL)
+sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="192.168.1.0/24" port port="6099" protocol="tcp" accept'
+sudo firewall-cmd --reload
+```
+
+### 5. Reverse Proxy with SSL
+
+Use nginx as a reverse proxy with SSL:
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name napcat.example.com;
+
+    ssl_certificate /etc/ssl/certs/napcat.crt;
+    ssl_certificate_key /etc/ssl/private/napcat.key;
+
+    location / {
+        proxy_pass http://127.0.0.1:6099;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+```
+
+## Backup and Recovery
+
+### Backup Essential Data
+
+```bash
+#!/bin/bash
+# backup-napcat.sh
+
+BACKUP_DIR="/backup/napcat/$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$BACKUP_DIR"
+
+# Backup configuration
+cp -r /opt/napcat/config "$BACKUP_DIR/"
+
+# Backup data
+cp -r /opt/napcat/data "$BACKUP_DIR/"
+
+# Backup logs (optional)
+cp -r /opt/napcat/logs "$BACKUP_DIR/"
+
+echo "Backup completed: $BACKUP_DIR"
+```
+
+### Automated Backups with Cron
+
+```bash
+# Add to crontab
+crontab -e
+
+# Daily backup at 2 AM
+0 2 * * * /opt/napcat/backup-napcat.sh
+```
+
+## Troubleshooting
+
+### Service Won't Start
+
+```bash
+# Check service status
+systemctl status napcat
+
+# View detailed logs
+journalctl -xeu napcat
+
+# Check file permissions
+ls -la /opt/napcat
+```
+
+### High Memory Usage
+
+```javascript ecosystem.config.js
+// Add memory limit in PM2
+max_memory_restart: '1G'
+```
+
+### Connection Issues
+
+```bash
+# Test port availability
+netstat -tlnp | grep 6099
+
+# Check firewall rules
+sudo ufw status
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Login Methods" icon="key" href="/guides/login-methods">
+    Configure QQ account login
+  </Card>
+  <Card title="Message Handling" icon="message" href="/guides/message-handling">
+    Handle messages and events
+  </Card>
+</CardGroup>

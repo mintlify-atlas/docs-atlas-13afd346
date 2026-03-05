@@ -1,0 +1,540 @@
+---
+title: Migration Guide
+description: Guide for migrating between NapCat versions
+---
+
+## Overview
+
+This guide helps you migrate between different versions of NapCat, covering breaking changes, deprecated features, and new functionality.
+
+## Version Compatibility
+
+### Current Requirements
+
+- **NapCat Version**: Always use the latest stable release
+- **NTQQ Version**: Compatible with currently supported NTQQ versions
+- **Community Access**: Requires NapCat >= 4.17.31 (join key valid for latest 100 versions)
+
+## Migration Checklist
+
+Before updating:
+
+1. **Backup your configuration**
+   ```bash
+   cp onebot11.json onebot11.json.backup
+   ```
+
+2. **Review release notes**
+   - Check [GitHub Releases](https://github.com/NapNeko/NapCatQQ/releases) for changes
+   - Look for breaking changes
+   - Note deprecated features
+
+3. **Test in development**
+   - Test the new version in a dev environment first
+   - Verify all network adapters work
+   - Test critical API calls
+
+4. **Update incrementally**
+   - Don't skip major versions
+   - Update one major version at a time if possible
+
+## Configuration Changes
+
+### Network Configuration Structure
+
+The network configuration uses a consistent structure across all adapter types:
+
+```json
+{
+  "network": {
+    "httpServers": [{...}],
+    "httpSseServers": [{...}],
+    "httpClients": [{...}],
+    "websocketServers": [{...}],
+    "websocketClients": [{...}],
+    "plugins": [{...}]
+  }
+}
+```
+
+### Required Fields
+
+Ensure all network adapters include required fields:
+
+```json
+{
+  "name": "unique-name",
+  "enable": true,
+  "port": 3000  // or "url" for clients
+}
+```
+
+### Token Configuration
+
+Tokens are now consistently named `token` across all adapters:
+
+```json
+{
+  "token": "your_secret_token"  // Previously may have been "access_token"
+}
+```
+
+### Heartbeat Configuration
+
+WebSocket heartbeat intervals are now in milliseconds:
+
+```json
+{
+  "heartInterval": 30000  // 30 seconds in milliseconds
+}
+```
+
+Previously this may have been in seconds in some configurations.
+
+## API Changes
+
+### Response Format
+
+All API responses follow the OneBot 11 standard:
+
+```json
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": {...},
+  "echo": "..."
+}
+```
+
+### Error Codes
+
+Standardized error codes:
+
+| Code | Meaning |
+|------|--------|
+| 0 | Success |
+| 1400 | Invalid JSON |
+| 1403 | Authentication failed |
+| 1404 | API not found |
+| 200 | Generic error |
+
+### Message Format
+
+Message format options:
+
+```json
+{
+  "messagePostFormat": "array"  // or "string"
+}
+```
+
+- `"array"` - OneBot 11 message segment array (recommended)
+- `"string"` - CQ code format string
+
+## Network Adapter Changes
+
+### HTTP Server
+
+**New Configuration:**
+```json
+{
+  "httpServers": [{
+    "name": "http-server",
+    "enable": true,
+    "port": 3000,
+    "host": "127.0.0.1",
+    "enableCors": true,
+    "enableWebsocket": false,
+    "token": "",
+    "debug": false
+  }]
+}
+```
+
+**Changes:**
+- Added `enableWebsocket` option to enable WebSocket on same port
+- Supports request bodies up to 5000MB (previously limited)
+- Improved JSON5 parsing support
+
+### WebSocket Server
+
+**New Configuration:**
+```json
+{
+  "websocketServers": [{
+    "name": "websocket-server",
+    "enable": true,
+    "host": "127.0.0.1",
+    "port": 3001,
+    "token": "",
+    "heartInterval": 30000,
+    "enableForcePushEvent": true
+  }]
+}
+```
+
+**Changes:**
+- `heartInterval` now in milliseconds
+- Added `enableForcePushEvent` option
+- Maximum payload size: 50MB
+
+### WebSocket Client (Reverse)
+
+**New Configuration:**
+```json
+{
+  "websocketClients": [{
+    "name": "websocket-client",
+    "enable": true,
+    "url": "ws://localhost:8082",
+    "token": "",
+    "reconnectInterval": 5000,
+    "heartInterval": 30000
+  }]
+}
+```
+
+**Changes:**
+- Added automatic reconnection
+- `reconnectInterval` configurable (default: 5000ms)
+- Sends `X-Self-ID` header
+- Sends `x-client-role: Universal` for Koishi compatibility
+
+### HTTP Client (Webhook)
+
+**New Configuration:**
+```json
+{
+  "httpClients": [{
+    "name": "http-client",
+    "enable": true,
+    "url": "http://localhost:8080",
+    "token": ""
+  }]
+}
+```
+
+**Changes:**
+- HMAC-SHA1 signature in `X-Signature` header
+- Sends `X-Self-ID` header
+- Supports quick action responses
+
+## Authentication Changes
+
+### Token Authentication
+
+All adapters now support consistent token authentication:
+
+**Authorization Header:**
+```
+Authorization: Bearer your_token
+```
+
+**Query Parameter:**
+```
+?access_token=your_token
+```
+
+**WebSocket URL:**
+```
+ws://localhost:3001/?access_token=your_token
+```
+
+### Signature Verification
+
+Webhook requests include HMAC signature:
+
+```javascript
+const crypto = require('crypto');
+const hmac = crypto.createHmac('sha1', token);
+hmac.update(body);
+const signature = 'sha1=' + hmac.digest('hex');
+```
+
+Check the `X-Signature` header to verify authenticity.
+
+## Deprecated Features
+
+### Legacy Configuration Format
+
+Old flat configuration format is deprecated. Use the structured format:
+
+**Old (Deprecated):**
+```json
+{
+  "http": {
+    "enable": true,
+    "port": 3000
+  }
+}
+```
+
+**New:**
+```json
+{
+  "network": {
+    "httpServers": [{
+      "name": "http-server",
+      "enable": true,
+      "port": 3000
+    }]
+  }
+}
+```
+
+### Single Network Adapter
+
+Multiple adapters of the same type are now supported:
+
+```json
+{
+  "network": {
+    "httpServers": [
+      {"name": "public", "port": 3000},
+      {"name": "private", "port": 3001}
+    ]
+  }
+}
+```
+
+## New Features
+
+### HTTP Server WebSocket Support
+
+HTTP servers can now handle WebSocket connections on the same port:
+
+```json
+{
+  "httpServers": [{
+    "port": 3000,
+    "enableWebsocket": true
+  }]
+}
+```
+
+Connect to:
+- `/` - Event WebSocket
+- `/api` - API WebSocket
+
+### JSON5 Support
+
+All parsers now support JSON5 syntax:
+
+```json5
+{
+  // Comments are allowed
+  action: 'send_msg',  // Trailing commas OK
+  params: {
+    message: 'Hello',
+  },
+}
+```
+
+### Debug Mode
+
+Each adapter can enable debug logging:
+
+```json
+{
+  "debug": true
+}
+```
+
+### Report Self Message
+
+Control whether bot's own messages are reported:
+
+```json
+{
+  "reportSelfMessage": false  // Default: don't report self messages
+}
+```
+
+## Breaking Changes by Version
+
+### Version 4.x
+
+**Configuration Structure**
+- Network configuration moved to `network` object
+- Adapters now in typed arrays (httpServers, websocketServers, etc.)
+- Each adapter requires unique `name` field
+
+**Authentication**
+- Standardized token field name
+- HMAC signature for webhooks
+- Token sent in Authorization header for reverse WebSocket
+
+**API Changes**
+- Response format strictly follows OneBot 11
+- Error codes standardized
+- Echo parameter handling improved
+
+### Version 3.x to 4.x
+
+If migrating from version 3.x:
+
+1. **Update configuration structure**
+   ```json
+   // Old
+   {"http": {...}}
+   
+   // New
+   {"network": {"httpServers": [{...}]}}
+   ```
+
+2. **Update authentication code**
+   - Check for Authorization header
+   - Verify HMAC signatures for webhooks
+
+3. **Update API response handling**
+   - Parse `retcode` instead of `status`
+   - Handle new error codes
+
+4. **Update WebSocket connection logic**
+   - Handle lifecycle events
+   - Update heartbeat handling
+   - Handle reconnection events
+
+## Common Migration Issues
+
+### Configuration Not Loading
+
+**Symptom:** Changes have no effect
+
+**Solution:**
+1. Validate JSON syntax
+2. Check file location
+3. Restart NapCat completely
+4. Check logs for parsing errors
+
+### Authentication Failures
+
+**Symptom:** 403 errors or connection rejected
+
+**Solution:**
+1. Update token field name to `token`
+2. Update authentication header format
+3. Verify token matches in config and client
+
+### WebSocket Connection Issues
+
+**Symptom:** WebSocket won't connect
+
+**Solution:**
+1. Update connection URL format
+2. Update authentication method
+3. Handle new lifecycle events
+4. Update heartbeat interval (now in milliseconds)
+
+### Missing Events
+
+**Symptom:** Events not received after update
+
+**Solution:**
+1. Check `reportSelfMessage` setting
+2. Verify adapter is enabled
+3. Connect to correct endpoint (`/` for events)
+4. Check message format setting
+
+## Testing After Migration
+
+### Basic Connectivity
+
+```bash
+# Test HTTP API
+curl http://localhost:3000/get_login_info
+
+# Test with authentication
+curl -H "Authorization: Bearer token" http://localhost:3000/get_login_info
+```
+
+### WebSocket Connection
+
+```javascript
+const WebSocket = require('ws');
+const ws = new WebSocket('ws://localhost:3001/?access_token=token');
+
+ws.on('open', () => console.log('Connected'));
+ws.on('message', (data) => console.log('Received:', data.toString()));
+ws.on('error', (err) => console.error('Error:', err));
+```
+
+### Send Test Message
+
+```bash
+curl -X POST http://localhost:3000/send_private_msg \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer token" \
+  -d '{"user_id": 12345678, "message": "Test"}'
+```
+
+### Webhook Testing
+
+```javascript
+// Test webhook signature verification
+const crypto = require('crypto');
+const express = require('express');
+const app = express();
+
+app.post('/', express.json(), (req, res) => {
+  const signature = req.headers['x-signature'];
+  const body = JSON.stringify(req.body);
+  const hmac = crypto.createHmac('sha1', 'token');
+  hmac.update(body);
+  const expected = 'sha1=' + hmac.digest('hex');
+  
+  console.log('Signature:', signature === expected ? 'Valid' : 'Invalid');
+  console.log('Event:', req.body);
+  
+  res.json({});
+});
+
+app.listen(8080);
+```
+
+## Rollback Plan
+
+If migration fails:
+
+1. **Stop NapCat**
+   ```bash
+   # Kill the process
+   pkill napcat
+   ```
+
+2. **Restore backup**
+   ```bash
+   mv onebot11.json.backup onebot11.json
+   ```
+
+3. **Reinstall previous version**
+   - Download previous release
+   - Replace with backed-up version
+
+4. **Restart**
+   ```bash
+   ./napcat
+   ```
+
+## Getting Help
+
+If you encounter issues during migration:
+
+1. Check [Troubleshooting Guide](/resources/troubleshooting)
+2. Review [GitHub Issues](https://github.com/NapNeko/NapCatQQ/issues)
+3. Join [Community Groups](/resources/community)
+4. Check [FAQ](/resources/faq)
+
+When asking for help, provide:
+- Current NapCat version
+- Previous NapCat version
+- Configuration file (remove sensitive tokens)
+- Error messages from logs
+- Steps you've already tried
+
+## Next Steps
+
+- Review [Configuration Guide](/guide/configuration/network)
+- Check [API Documentation](/api/actions/overview)
+- Read [Best Practices](/guide/concepts/best-practices)
+- Join the [Community](/resources/community)

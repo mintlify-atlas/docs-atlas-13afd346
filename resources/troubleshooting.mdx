@@ -1,0 +1,490 @@
+---
+title: Troubleshooting
+description: Common issues and solutions for NapCat
+---
+
+## Common Issues
+
+This guide covers common problems you may encounter when using NapCat and their solutions.
+
+## Login Issues
+
+### Cannot Login / Login Timeout
+
+**Symptoms:**
+- Login process hangs or times out
+- QR code doesn't appear
+- "Login failed" error message
+
+**Solutions:**
+
+1. **Check NTQQ version compatibility**
+   - Ensure you're using a compatible NTQQ version
+   - Download the latest version from the [Release page](https://github.com/NapNeko/NapCatQQ/releases/)
+
+2. **Clear login cache**
+   - Close NapCat and NTQQ completely
+   - Delete the login cache directory
+   - Restart and try logging in again
+
+3. **Check network connectivity**
+   - Ensure you have a stable internet connection
+   - Try disabling VPN or proxy temporarily
+   - Check if QQ servers are accessible
+
+4. **Update NapCat**
+   - Older versions may have login compatibility issues
+   - Always use the latest stable release
+
+### Account Frozen After Login
+
+**Symptoms:**
+- Login succeeds but account gets frozen
+- "Account at risk" warning
+
+**Solutions:**
+
+1. **Use official QQ app for verification**
+   - Login to the official QQ mobile app
+   - Complete any security verifications
+   - Try NapCat again after verification
+
+2. **Avoid frequent logins**
+   - Don't login/logout repeatedly in short time
+   - Wait at least 5-10 minutes between attempts
+
+3. **Use stable environment**
+   - Login from the same IP address consistently
+   - Avoid using public or frequently changing IPs
+
+## Connection Issues
+
+### WebSocket Connection Refused
+
+**Symptoms:**
+- `Error: connect ECONNREFUSED`
+- WebSocket client cannot connect
+
+**Solutions:**
+
+1. **Verify server is running**
+   ```bash
+   # Check if port is listening
+   netstat -an | grep 3001
+   # or
+   lsof -i :3001
+   ```
+
+2. **Check configuration**
+   ```json
+   {
+     "network": {
+       "websocketServers": [{
+         "enable": true,  // Must be true
+         "host": "127.0.0.1",
+         "port": 3001
+       }]
+     }
+   }
+   ```
+
+3. **Check firewall settings**
+   - Allow the port through firewall
+   - On Linux: `sudo ufw allow 3001`
+   - On Windows: Add firewall rule for the port
+
+4. **Verify host binding**
+   - Use `0.0.0.0` to listen on all interfaces
+   - Use `127.0.0.1` for localhost only
+   - Make sure client connects to the correct host
+
+### HTTP API Returns 403 Forbidden
+
+**Symptoms:**
+- API calls return 403 status code
+- `{"message": "token verify failed!"}`
+
+**Solutions:**
+
+1. **Check authentication token**
+   ```bash
+   # Correct format
+   curl -H "Authorization: Bearer your_token" http://localhost:3000/get_login_info
+   
+   # Or use query parameter
+   curl "http://localhost:3000/get_login_info?access_token=your_token"
+   ```
+
+2. **Verify token in config**
+   - Ensure token matches exactly (case-sensitive)
+   - Check for extra spaces or quotes
+   - If token is empty in config, don't send token in request
+
+3. **Check WebSocket authentication**
+   ```javascript
+   // Include token in URL
+   const ws = new WebSocket('ws://localhost:3001/?access_token=your_token');
+   
+   // Or in headers
+   const ws = new WebSocket('ws://localhost:3001/', {
+     headers: { 'Authorization': 'Bearer your_token' }
+   });
+   ```
+
+### Reverse WebSocket Not Connecting
+
+**Symptoms:**
+- `反向WebSocket连接错误`
+- `在 5 秒后尝试重新连接`
+
+**Solutions:**
+
+1. **Verify target server is running**
+   - Ensure your WebSocket server is running and listening
+   - Check server logs for connection attempts
+
+2. **Check URL format**
+   ```json
+   {
+     "url": "ws://localhost:8082"  // Correct
+     // Not: "http://localhost:8082"
+     // Not: "ws://localhost:8082/"
+   }
+   ```
+
+3. **Test with a simple WebSocket server**
+   ```javascript
+   const WebSocket = require('ws');
+   const wss = new WebSocket.Server({ port: 8082 });
+   
+   wss.on('connection', (ws, req) => {
+     console.log('Client connected');
+     console.log('Headers:', req.headers);
+   });
+   
+   console.log('Server listening on port 8082');
+   ```
+
+## Event and Message Issues
+
+### Not Receiving Events
+
+**Symptoms:**
+- WebSocket connected but no events received
+- Messages sent but no notification
+
+**Solutions:**
+
+1. **Check connection type**
+   - Connect to `/` for events (not `/api`)
+   - `/api` endpoint is only for API calls
+   ```javascript
+   // Correct for events
+   const ws = new WebSocket('ws://localhost:3001/');
+   
+   // Wrong - this is for API calls only
+   const ws = new WebSocket('ws://localhost:3001/api');
+   ```
+
+2. **Verify bot is online**
+   - Check WebUI or logs to confirm bot is logged in
+   - Look for lifecycle event after connection
+
+3. **Check event filters**
+   - Verify `reportSelfMessage` setting if expecting self-messages
+   - Check if events are filtered by your application
+
+4. **Monitor debug logs**
+   ```json
+   {
+     "debug": true  // Enable debug logging
+   }
+   ```
+
+### Messages Not Sending
+
+**Symptoms:**
+- API returns success but message not delivered
+- "Send message failed" error
+
+**Solutions:**
+
+1. **Check API response**
+   ```json
+   {
+     "status": "ok",
+     "retcode": 0,
+     "data": {
+       "message_id": 12345  // Message ID confirms success
+     }
+   }
+   ```
+
+2. **Verify message format**
+   ```json
+   {
+     "action": "send_private_msg",
+     "params": {
+       "user_id": 12345678,  // Must be number
+       "message": "Hello"    // Can be string or array
+     }
+   }
+   ```
+
+3. **Check user/group ID**
+   - Ensure user ID exists and bot has permission
+   - For groups, verify bot is a member
+   - For private messages, must be friend or in same group
+
+4. **Check message content**
+   - Some message types may be restricted
+   - Try sending a simple text message first
+   - Check for invalid CQ codes
+
+### Webhook Not Receiving Events
+
+**Symptoms:**
+- HTTP client configured but webhook server receives nothing
+- No POST requests arriving
+
+**Solutions:**
+
+1. **Verify HTTP client is enabled**
+   ```json
+   {
+     "network": {
+       "httpClients": [{
+         "enable": true,  // Must be true
+         "url": "http://localhost:8080"
+       }]
+     }
+   }
+   ```
+
+2. **Check webhook URL accessibility**
+   ```bash
+   # Test if webhook endpoint is reachable
+   curl -X POST http://localhost:8080 \
+     -H "Content-Type: application/json" \
+     -d '{"test": "data"}'
+   ```
+
+3. **Check server logs**
+   - Look for `[Http Client]` errors in NapCat logs
+   - Check webhook server logs for incoming requests
+
+4. **Verify network path**
+   - If using `localhost`, ensure both run on same machine
+   - Check firewall rules
+   - Test with public IP or ngrok for debugging
+
+## Configuration Issues
+
+### Configuration Not Loading
+
+**Symptoms:**
+- Changes to config file have no effect
+- Bot uses default configuration
+
+**Solutions:**
+
+1. **Check config file location**
+   - Ensure config file is in the correct directory
+   - Verify file name is correct
+
+2. **Validate JSON syntax**
+   - Use a JSON validator to check for syntax errors
+   - Check for missing commas, brackets, or quotes
+   - Use JSON5 validator if using JSON5 features
+
+3. **Restart NapCat**
+   - Configuration changes require restart
+   - Close completely before restarting
+
+4. **Check file permissions**
+   - Ensure NapCat can read the config file
+   - On Linux: `chmod 644 config.json`
+
+### Invalid Configuration Error
+
+**Symptoms:**
+- "Invalid configuration" error on startup
+- NapCat fails to start
+
+**Solutions:**
+
+1. **Check required fields**
+   ```json
+   {
+     "network": {
+       "httpServers": [{
+         "name": "http-server",  // Required
+         "enable": true,          // Required
+         "port": 3000            // Required
+       }]
+     }
+   }
+   ```
+
+2. **Verify data types**
+   - `port` must be number, not string
+   - `enable` must be boolean, not string
+   - Arrays must use `[]`, objects must use `{}`
+
+3. **Check for typos**
+   - Field names are case-sensitive
+   - Use exact field names from documentation
+
+## Performance Issues
+
+### High Memory Usage
+
+**Symptoms:**
+- NapCat uses excessive RAM
+- System becomes slow
+
+**Solutions:**
+
+1. **Limit message history**
+   - Reduce message cache size if available
+   - Clear old logs periodically
+
+2. **Disable debug logging**
+   ```json
+   {
+     "debug": false
+   }
+   ```
+
+3. **Reduce concurrent connections**
+   - Limit number of WebSocket connections
+   - Use fewer network adapters
+
+4. **Update to latest version**
+   - Newer versions may have memory optimizations
+
+### High CPU Usage
+
+**Symptoms:**
+- CPU usage constantly high
+- System becomes unresponsive
+
+**Solutions:**
+
+1. **Check heartbeat intervals**
+   ```json
+   {
+     "heartInterval": 60000  // Increase interval (60 seconds)
+   }
+   ```
+
+2. **Reduce logging verbosity**
+   - Disable debug mode
+   - Reduce log output
+
+3. **Check for message loops**
+   - Ensure bot isn't responding to its own messages
+   - Use `reportSelfMessage: false`
+
+## Debugging Tips
+
+### Enable Debug Logging
+
+```json
+{
+  "network": {
+    "httpServers": [{
+      "debug": true  // Enable for each adapter
+    }]
+  }
+}
+```
+
+### Check Logs
+
+Look for error messages in NapCat logs:
+- `[OneBot]` - OneBot related logs
+- `[HTTP Server]` - HTTP server logs
+- `[WebSocket]` - WebSocket logs
+- `[Http Client]` - Webhook logs
+
+### Test with Minimal Configuration
+
+Start with a minimal config to isolate issues:
+
+```json
+{
+  "network": {
+    "httpServers": [{
+      "name": "test",
+      "enable": true,
+      "port": 3000,
+      "host": "127.0.0.1",
+      "token": ""
+    }]
+  }
+}
+```
+
+### Use API Testing Tools
+
+- **Postman** or **Insomnia** for HTTP API testing
+- **wscat** for WebSocket testing
+  ```bash
+  npm install -g wscat
+  wscat -c ws://localhost:3001
+  ```
+
+### Monitor Network Traffic
+
+```bash
+# Linux - monitor port traffic
+sudo tcpdump -i any port 3000
+
+# Check listening ports
+netstat -tulpn | grep napcat
+```
+
+## Getting Help
+
+### Before Asking for Help
+
+1. **Search existing issues** - Check GitHub issues for similar problems
+2. **Read documentation** - Review relevant documentation sections
+3. **Check version** - Ensure you're using the latest version
+4. **Gather information**:
+   - NapCat version
+   - NTQQ version
+   - Operating system
+   - Configuration (remove sensitive tokens)
+   - Error messages and logs
+   - Steps to reproduce
+
+### Community Support
+
+Join the NapCat community groups:
+
+- [NapCat Family Group 1](https://qm.qq.com/q/VwpnklcXqo) (1090875633)
+- [NapCat Family Group 2](https://qm.qq.com/q/gq18RH7o7S) (1059714215)
+- [NapCat Family Group 3](https://qm.qq.com/q/XyiyGPqa42) (1085662710)
+- [NapCat Family Group 4](https://qm.qq.com/q/E4nfkGD6oK) (1085359803)
+
+Get the join password from the WebUI About page.
+
+**Note:** This is a non-profit project. For integration issues, basic questions, or underlying framework issues, please search for solutions on your own.
+
+### Reporting Bugs
+
+When reporting bugs on GitHub:
+
+1. Use a clear, descriptive title
+2. Include steps to reproduce
+3. Provide expected vs actual behavior
+4. Include relevant logs and configuration
+5. Specify environment details
+
+## Next Steps
+
+- Check the [FAQ](/resources/faq) for frequently asked questions
+- Review [API documentation](/api/actions/overview) for API usage
+- Join the [community](/resources/community) for support

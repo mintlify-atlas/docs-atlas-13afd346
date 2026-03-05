@@ -1,0 +1,401 @@
+---
+title: User Actions
+description: OneBot 11 user and friend management actions
+---
+
+## get_login_info
+
+Get the bot's own account information.
+
+### Request
+
+No parameters required.
+
+### Response
+
+<ResponseField name="user_id" type="number">
+  Bot's QQ number
+</ResponseField>
+
+<ResponseField name="nickname" type="string">
+  Bot's nickname
+</ResponseField>
+
+### Example
+
+```json
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": {
+    "user_id": 123456789,
+    "nickname": "My Bot"
+  }
+}
+```
+
+## get_stranger_info
+
+Get information about a user (go-cqhttp extension).
+
+### Request
+
+<ParamField path="user_id" type="string" required>
+  User QQ number
+</ParamField>
+
+<ParamField path="no_cache" type="boolean | string" default="false">
+  Bypass cache and fetch fresh data
+</ParamField>
+
+### Response
+
+<ResponseField name="user_id" type="number">
+  User QQ number
+</ResponseField>
+
+<ResponseField name="nickname" type="string">
+  User nickname
+</ResponseField>
+
+<ResponseField name="sex" type="string">
+  Gender: `male`, `female`, or `unknown`
+</ResponseField>
+
+<ResponseField name="age" type="number">
+  Age
+</ResponseField>
+
+<ResponseField name="qid" type="string">
+  QQ ID (QID)
+</ResponseField>
+
+<ResponseField name="level" type="number">
+  QQ level
+</ResponseField>
+
+<ResponseField name="login_days" type="number">
+  Login days
+</ResponseField>
+
+### Example
+
+```json
+// Request
+{
+  "user_id": "987654321"
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": {
+    "user_id": 987654321,
+    "nickname": "User Name",
+    "sex": "male",
+    "age": 20,
+    "qid": "user_qid",
+    "level": 64,
+    "login_days": 1000
+  }
+}
+```
+
+## get_friend_list
+
+Get the bot's friend list.
+
+### Request
+
+<ParamField path="no_cache" type="boolean | string" default="false">
+  Bypass cache and fetch fresh data
+</ParamField>
+
+### Response
+
+<ResponseField name="data" type="array">
+  Array of friend objects
+</ResponseField>
+
+Each friend object contains:
+- `user_id` (number): Friend QQ number
+- `nickname` (string): Friend nickname
+- `remark` (string): Friend remark/note
+- `sex` (string): Gender
+- `level` (number): QQ level
+- `age` (number): Age
+- `qid` (string): QQ ID
+- `login_days` (number): Login days
+- `category_id` (number): Friend category ID
+- `categoryName` (string): Friend category name
+
+### Example
+
+```json
+// Request
+{
+  "no_cache": false
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": [
+    {
+      "user_id": 111111,
+      "nickname": "Friend 1",
+      "remark": "Best Friend",
+      "sex": "male",
+      "level": 64,
+      "age": 20,
+      "qid": "friend1_qid",
+      "category_id": 1,
+      "categoryName": "Friends"
+    },
+    {
+      "user_id": 222222,
+      "nickname": "Friend 2",
+      "remark": "Classmate",
+      "sex": "female",
+      "level": 32,
+      "age": 19,
+      "qid": "friend2_qid",
+      "category_id": 2,
+      "categoryName": "School"
+    }
+  ]
+}
+```
+
+## send_like
+
+Send a "like" (thumbs up) to a user's profile.
+
+### Request
+
+<ParamField path="user_id" type="string" required>
+  Target user QQ number
+</ParamField>
+
+<ParamField path="times" type="number | string" default="1">
+  Number of likes to send (1-10)
+</ParamField>
+
+### Response
+
+<ResponseField name="result" type="null">
+  Returns `null` on success
+</ResponseField>
+
+### Example
+
+```json
+// Request
+{
+  "user_id": "987654321",
+  "times": 10
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": null
+}
+```
+
+<Warning>
+  Sending likes too frequently may result in failure. The error code 1400 indicates rate limiting or the user doesn't exist.
+</Warning>
+
+## set_friend_add_request
+
+Approve or reject a friend request.
+
+### Request
+
+<ParamField path="flag" type="string" required>
+  Request flag from friend request event
+</ParamField>
+
+<ParamField path="approve" type="boolean | string" default="true">
+  Approve (`true`) or reject (`false`)
+</ParamField>
+
+<ParamField path="remark" type="string" default="">
+  Friend remark/note (only used when approving)
+</ParamField>
+
+### Response
+
+<ResponseField name="result" type="null">
+  Returns `null` on success
+</ResponseField>
+
+### Example
+
+```json
+// Request - Approve with remark
+{
+  "flag": "request_flag_12345",
+  "approve": true,
+  "remark": "New Friend"
+}
+
+// Request - Reject
+{
+  "flag": "request_flag_12345",
+  "approve": false
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": null
+}
+```
+
+## get_cookies
+
+Get cookies for QQ web interface (NapCat extension).
+
+### Request
+
+<ParamField path="domain" type="string">
+  Cookie domain (optional)
+</ParamField>
+
+### Response
+
+<ResponseField name="cookies" type="string">
+  Cookie string
+</ResponseField>
+
+### Example
+
+```json
+// Request
+{
+  "domain": "qun.qq.com"
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": {
+    "cookies": "uin=123456; skey=...; ..."
+  }
+}
+```
+
+## get_recent_contact
+
+Get recent contacts (NapCat extension).
+
+### Request
+
+<ParamField path="count" type="number" default="10">
+  Number of contacts to retrieve
+</ParamField>
+
+### Response
+
+<ResponseField name="data" type="array">
+  Array of recent contact objects
+</ResponseField>
+
+Each contact contains:
+- `user_id` (number): Contact QQ number (for private chats)
+- `group_id` (number): Group number (for group chats)
+- `time` (number): Last contact time
+- `message_type` (string): Contact type (`private` or `group`)
+- `message` (array): Last message content
+- `raw_message` (string): Last message text
+- `sender` (object): Sender information
+
+### Example
+
+```json
+// Request
+{
+  "count": 5
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": [
+    {
+      "user_id": 111111,
+      "time": 1234567890,
+      "message_type": "private",
+      "raw_message": "Hello",
+      "sender": {
+        "user_id": 111111,
+        "nickname": "Friend"
+      }
+    },
+    {
+      "group_id": 222222,
+      "time": 1234567800,
+      "message_type": "group",
+      "raw_message": "Hi group",
+      "sender": {
+        "user_id": 333333,
+        "nickname": "Member",
+        "card": "Card Name"
+      }
+    }
+  ]
+}
+```
+
+## Additional User Actions
+
+### set_friend_remark
+
+Set or update a friend's remark/note.
+
+<ParamField path="user_id" type="string" required>
+  Friend QQ number
+</ParamField>
+
+<ParamField path="remark" type="string" required>
+  New remark/note text
+</ParamField>
+
+### get_friend_with_category
+
+Get friend list with category information (NapCat extension).
+
+Returns friends organized by categories/groups.
+
+### get_unidirectional_friend_list
+
+Get list of one-way friends (users who added you but you haven't added back).
+
+### delete_friend
+
+Delete a friend from your friend list (go-cqhttp extension).
+
+<ParamField path="user_id" type="string" required>
+  Friend QQ number to delete
+</ParamField>
+
+### get_profile_like
+
+Get the list of users who liked your profile (NapCat extension).
+
+### get_user_status
+
+Get a user's online status (NapCat extension).
+
+<ParamField path="user_id" type="string" required>
+  User QQ number
+</ParamField>

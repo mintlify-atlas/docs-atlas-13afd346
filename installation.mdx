@@ -1,0 +1,499 @@
+---
+title: "Installation"
+description: "Detailed installation instructions for NapCat in Shell and Framework modes"
+---
+
+## System Requirements
+
+Before installing NapCat, ensure your system meets these requirements:
+
+### Minimum Requirements
+
+- **Operating System**: Windows 10+, macOS 10.15+, or Linux (Ubuntu 20.04+, Debian 11+, etc.)
+- **Node.js**: Version 18.0.0 or higher
+- **Memory**: 512MB RAM minimum, 1GB recommended
+- **Storage**: 200MB available disk space
+- **QQ**: Latest version of QQ installed (for Framework mode)
+
+### Recommended Requirements
+
+- **Memory**: 2GB RAM or more for better performance
+- **Storage**: 1GB available disk space for logs and cache
+- **Network**: Stable internet connection
+
+<Note>
+NapCat supports both **Shell Mode** (standalone) and **Framework Mode** (QQ plugin). Choose the mode that best fits your deployment needs.
+</Note>
+
+## Download NapCat
+
+<Steps>
+  <Step title="Visit GitHub Releases">
+    Go to the [NapCat GitHub Releases page](https://github.com/NapNeko/NapCatQQ/releases/) to download the latest version.
+  </Step>
+  
+  <Step title="Choose your platform">
+    Download the appropriate package for your operating system:
+    
+    <Tabs>
+      <Tab title="Windows">
+        - `NapCat-win-x64.zip` for 64-bit Windows
+        - Extract to a folder like `C:\NapCat`
+      </Tab>
+      
+      <Tab title="macOS">
+        - `NapCat-darwin-x64.zip` for Intel Macs
+        - `NapCat-darwin-arm64.zip` for Apple Silicon
+        - Extract to a folder like `/Applications/NapCat`
+      </Tab>
+      
+      <Tab title="Linux">
+        - `NapCat-linux-x64.zip` for 64-bit Linux
+        - Extract to a folder like `/opt/napcat` or `~/napcat`
+      </Tab>
+    </Tabs>
+  </Step>
+  
+  <Step title="Verify the download">
+    Check that you have the main executable:
+    
+    - Windows: `napcat.exe`
+    - Linux/macOS: `napcat`
+  </Step>
+</Steps>
+
+## Installation Methods
+
+NapCat supports two deployment modes. Choose the one that fits your needs:
+
+<Tabs>
+  <Tab title="Framework Mode (Recommended)">
+    ## Framework Mode Installation
+    
+    Framework Mode runs NapCat as a plugin injected into QQ, providing the best compatibility and features.
+    
+    ### Prerequisites
+    - QQ installed on your system
+    - QQ version must match NapCat compatibility (check release notes)
+    
+    ### Installation Steps
+    
+    <Steps>
+      <Step title="Install QQ">
+        Download and install the latest version of QQ from the [official QQ website](https://im.qq.com/).
+      </Step>
+      
+      <Step title="Extract NapCat">
+        Extract the NapCat archive to a permanent location:
+        
+        ```bash
+        # Linux/macOS
+        unzip NapCat-linux-x64.zip -d /opt/napcat
+        cd /opt/napcat
+        
+        # Windows PowerShell
+        Expand-Archive NapCat-win-x64.zip -DestinationPath C:\NapCat
+        cd C:\NapCat
+        ```
+      </Step>
+      
+      <Step title="Create configuration">
+        Create the configuration directory and files:
+        
+        ```bash
+        mkdir -p config
+        ```
+        
+        Create `config/napcat.json`:
+        
+        ```json config/napcat.json
+        {
+          "fileLog": true,
+          "consoleLog": true,
+          "fileLogLevel": "info",
+          "consoleLogLevel": "info"
+        }
+        ```
+        
+        Create `config/onebot11.json`:
+        
+        ```json config/onebot11.json
+        {
+          "http": [
+            {
+              "enable": true,
+              "host": "0.0.0.0",
+              "port": 3000,
+              "secret": "",
+              "enableHeart": true,
+              "enablePost": false
+            }
+          ],
+          "ws": [
+            {
+              "enable": true,
+              "host": "0.0.0.0",
+              "port": 3001
+            }
+          ],
+          "debug": false,
+          "messagePostFormat": "array"
+        }
+        ```
+      </Step>
+      
+      <Step title="Launch NapCat">
+        Run NapCat in Framework mode:
+        
+        ```bash
+        # Linux/macOS
+        ./napcat --framework
+        
+        # Windows
+        .\napcat.exe --framework
+        ```
+        
+        <Note>
+        NapCat will automatically detect your QQ installation and inject itself as a plugin.
+        </Note>
+      </Step>
+      
+      <Step title="Access WebUI">
+        After launch, NapCat will display the WebUI URL:
+        
+        ```
+        [NapCat] WebUI URL: http://127.0.0.1:6099/webui/?token=your-token-here
+        ```
+        
+        Open this URL in your browser to access the management interface.
+      </Step>
+    </Steps>
+    
+    ### Framework Mode Features
+    
+    ✅ Multiple login methods (QR code, password, quick login)  
+    ✅ Rich WebUI for management  
+    ✅ Access to all QQ features  
+    ✅ Best compatibility with QQ  
+    ✅ Suitable for desktop environments  
+  </Tab>
+  
+  <Tab title="Shell Mode">
+    ## Shell Mode Installation
+    
+    Shell Mode runs NapCat as a standalone process, ideal for headless servers.
+    
+    ### Prerequisites
+    - No QQ installation required
+    - Server or headless environment
+    
+    ### Installation Steps
+    
+    <Steps>
+      <Step title="Extract NapCat">
+        ```bash
+        unzip NapCat-linux-x64.zip -d /opt/napcat
+        cd /opt/napcat
+        ```
+      </Step>
+      
+      <Step title="Create configuration">
+        Create the configuration directory:
+        
+        ```bash
+        mkdir -p config
+        ```
+        
+        Create `config/napcat.json`:
+        
+        ```json config/napcat.json
+        {
+          "fileLog": true,
+          "consoleLog": true,
+          "fileLogLevel": "info",
+          "consoleLogLevel": "info"
+        }
+        ```
+        
+        Create `config/onebot11.json` (same as Framework mode)
+      </Step>
+      
+      <Step title="Launch NapCat">
+        Run NapCat in Shell mode:
+        
+        ```bash
+        ./napcat --shell
+        ```
+        
+        <Note>
+        In Shell mode, NapCat manages QQ instances as child processes with automatic crash recovery.
+        </Note>
+      </Step>
+      
+      <Step title="Login via QR code">
+        NapCat will generate a QR code in the terminal. Scan it with your QQ mobile app to log in.
+        
+        Alternatively, access the WebUI at the provided URL to use other login methods.
+      </Step>
+    </Steps>
+    
+    ### Shell Mode Features
+    
+    ✅ Runs independently of QQ GUI  
+    ✅ Process management and crash recovery  
+    ✅ Suitable for headless servers  
+    ✅ Minimal resource usage  
+    ✅ Automatic restart on crash  
+  </Tab>
+  
+  <Tab title="Docker">
+    ## Docker Installation
+    
+    Deploy NapCat using Docker for easy containerized deployment.
+    
+    <Warning>
+    Docker support may vary depending on the NapCat version. Check the official documentation for the latest Docker images.
+    </Warning>
+    
+    ### Using Docker Compose
+    
+    Create a `docker-compose.yml` file:
+    
+    ```yaml docker-compose.yml
+    version: '3'
+    
+    services:
+      napcat:
+        image: napcatneko/napcat:latest
+        container_name: napcat
+        restart: unless-stopped
+        ports:
+          - "3000:3000"  # HTTP API
+          - "3001:3001"  # WebSocket
+          - "6099:6099"  # WebUI
+        volumes:
+          - ./config:/app/config
+          - ./data:/app/data
+          - ./logs:/app/logs
+        environment:
+          - TZ=Asia/Shanghai
+    ```
+    
+    Start the container:
+    
+    ```bash
+    docker-compose up -d
+    ```
+    
+    View logs:
+    
+    ```bash
+    docker-compose logs -f napcat
+    ```
+  </Tab>
+</Tabs>
+
+## Directory Structure
+
+After installation, your NapCat directory should look like this:
+
+```
+napcat/
+├── napcat              # Main executable
+├── config/             # Configuration directory
+│   ├── napcat.json     # Core configuration
+│   └── onebot11.json   # OneBot protocol configuration
+├── data/               # Runtime data (created after first run)
+├── logs/               # Log files (created after first run)
+└── temp/               # Temporary files (created after first run)
+```
+
+## Configuration Files
+
+### napcat.json
+
+Core NapCat configuration:
+
+```json config/napcat.json
+{
+  "fileLog": true,
+  "consoleLog": true,
+  "fileLogLevel": "info",
+  "consoleLogLevel": "info",
+  "autoTimeSync": true,
+  "o3HookMode": 0,
+  "bypass": {
+    "hook": false,
+    "window": false,
+    "module": false,
+    "process": false,
+    "container": false,
+    "js": false
+  }
+}
+```
+
+See [NapCat Configuration](/config/napcat-config) for details.
+
+### onebot11.json
+
+OneBot 11 protocol configuration:
+
+```json config/onebot11.json
+{
+  "http": [
+    {
+      "enable": true,
+      "host": "0.0.0.0",
+      "port": 3000,
+      "secret": "",
+      "enableHeart": true,
+      "enablePost": false,
+      "postUrls": []
+    }
+  ],
+  "ws": [
+    {
+      "enable": true,
+      "host": "0.0.0.0",
+      "port": 3001
+    }
+  ],
+  "reverseWs": {
+    "enable": false,
+    "urls": []
+  },
+  "debug": false,
+  "heartInterval": 30000,
+  "messagePostFormat": "array",
+  "enableLocalFile2Url": true,
+  "musicSignUrl": "",
+  "reportSelfMessage": false,
+  "token": ""
+}
+```
+
+See [OneBot Configuration](/config/onebot-config) for details.
+
+## Post-Installation
+
+<Steps>
+  <Step title="Verify installation">
+    Check that NapCat is running:
+    
+    ```bash
+    curl http://localhost:3000/get_status
+    ```
+    
+    You should receive a JSON response with the bot status.
+  </Step>
+  
+  <Step title="Set up authentication (recommended)">
+    Add a secret token to your `onebot11.json`:
+    
+    ```json
+    {
+      "http": [
+        {
+          "secret": "your-secret-token-here"
+        }
+      ]
+    }
+    ```
+    
+    Restart NapCat for changes to take effect.
+  </Step>
+  
+  <Step title="Configure firewall">
+    If deploying on a server, configure your firewall to allow:
+    - Port 3000 (HTTP API)
+    - Port 3001 (WebSocket)
+    - Port 6099 (WebUI)
+    
+    ```bash
+    # UFW (Ubuntu/Debian)
+    sudo ufw allow 3000/tcp
+    sudo ufw allow 3001/tcp
+    sudo ufw allow 6099/tcp
+    ```
+  </Step>
+</Steps>
+
+## Updating NapCat
+
+To update NapCat to a new version:
+
+<Steps>
+  <Step title="Stop NapCat">
+    Stop the running NapCat process (Ctrl+C or stop the service).
+  </Step>
+  
+  <Step title="Backup configuration">
+    ```bash
+    cp -r config config.backup
+    ```
+  </Step>
+  
+  <Step title="Download new version">
+    Download the latest release from GitHub and extract it to the same directory (replace old files).
+  </Step>
+  
+  <Step title="Restart NapCat">
+    Launch NapCat again with your preferred mode.
+  </Step>
+  
+  <Step title="Verify update">
+    Check the version:
+    
+    ```bash
+    curl http://localhost:3000/get_version_info
+    ```
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Permission denied on Linux/macOS">
+    Make the executable file executable:
+    
+    ```bash
+    chmod +x napcat
+    ```
+  </Accordion>
+  
+  <Accordion title="Port already in use">
+    Change the port numbers in `config/onebot11.json` to available ports.
+  </Accordion>
+  
+  <Accordion title="QQ not detected (Framework mode)">
+    Ensure:
+    - QQ is installed in the default location
+    - You're using a compatible QQ version
+    - QQ is not running when you start NapCat
+  </Accordion>
+  
+  <Accordion title="Failed to start WebUI">
+    Check:
+    - Port 6099 is not in use
+    - Firewall allows connections
+    - WebUI is not disabled in configuration
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Follow the quickstart guide to send your first message
+  </Card>
+  <Card title="Configuration" icon="sliders" href="/config/napcat-config">
+    Learn about all configuration options
+  </Card>
+  <Card title="Deployment" icon="server" href="/guides/deployment">
+    Deploy NapCat to production
+  </Card>
+  <Card title="Login Methods" icon="key" href="/guides/login-methods">
+    Explore different ways to log in
+  </Card>
+</CardGroup>

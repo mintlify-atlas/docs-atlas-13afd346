@@ -1,0 +1,747 @@
+---
+title: Group API
+description: NTQQGroupApi methods for managing groups and group members
+---
+
+## Overview
+
+The `NTQQGroupApi` class provides comprehensive methods for managing QQ groups, including group information, member management, permissions, and group settings.
+
+## Group Information
+
+### getGroups
+
+Get list of all groups the bot is in.
+
+```typescript
+async getGroups(forced: boolean = false)
+```
+
+<ParamField path="forced" type="boolean" default="false">
+  Whether to force refresh from server
+</ParamField>
+
+<ResponseField name="return" type="Group[]">
+  Array of group objects
+</ResponseField>
+
+**Example:**
+
+```typescript
+const groups = await core.apis.GroupApi.getGroups(true);
+groups.forEach(group => {
+  console.log(`${group.groupName} (${group.groupCode})`);
+});
+```
+
+### fetchGroupDetail
+
+Get detailed information about a specific group.
+
+```typescript
+async fetchGroupDetail(groupCode: string)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code/ID
+</ParamField>
+
+<ResponseField name="return" type="GroupDetailInfo">
+  Detailed group information object
+</ResponseField>
+
+**Example:**
+
+```typescript
+const detail = await core.apis.GroupApi.fetchGroupDetail('123456789');
+console.log('Group name:', detail.groupName);
+console.log('Member count:', detail.memberCount);
+```
+
+### searchGroup
+
+Search for a group by group code.
+
+```typescript
+async searchGroup(groupCode: string)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code to search for
+</ParamField>
+
+<ResponseField name="return" type="GroupInfo | undefined">
+  Group information if found
+</ResponseField>
+
+## Group Members
+
+### getGroupMember
+
+Get information about a specific group member.
+
+```typescript
+async getGroupMember(
+  groupCode: string | number,
+  memberUinOrUid: string | number
+): Promise<GroupMember | undefined>
+```
+
+<ParamField path="groupCode" type="string | number" required>
+  Group code
+</ParamField>
+
+<ParamField path="memberUinOrUid" type="string | number" required>
+  Member UIN or UID
+</ParamField>
+
+<ResponseField name="return" type="GroupMember | undefined">
+  Group member object if found
+</ResponseField>
+
+**Example:**
+
+```typescript
+const member = await core.apis.GroupApi.getGroupMember('123456789', 'u_abc123');
+if (member) {
+  console.log('Member card:', member.cardName);
+  console.log('Member role:', member.role);
+}
+```
+
+### getGroupMemberAll
+
+Get all members of a group.
+
+```typescript
+async getGroupMemberAll(groupCode: string, forced: boolean = false)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+<ParamField path="forced" type="boolean" default="false">
+  Force refresh from server
+</ParamField>
+
+<ResponseField name="return" type="{ result: { infos: Map<string, GroupMember> } }">
+  Object containing map of member UID to GroupMember
+</ResponseField>
+
+### getGroupMemberEx
+
+Get extended information about a group member.
+
+```typescript
+async getGroupMemberEx(
+  groupCode: string,
+  uid: string,
+  forced: boolean = false,
+  retry: number = 2
+): Promise<GroupMember | undefined>
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+<ParamField path="uid" type="string" required>
+  Member UID
+</ParamField>
+
+<ParamField path="forced" type="boolean" default="false">
+  Force refresh from server
+</ParamField>
+
+<ParamField path="retry" type="number" default="2">
+  Number of retry attempts
+</ParamField>
+
+### getMemberExtInfo
+
+Get extended member information including level and title.
+
+```typescript
+async getMemberExtInfo(groupCode: string, uin: string)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+<ParamField path="uin" type="string" required>
+  Member UIN
+</ParamField>
+
+## Member Management
+
+### kickMember
+
+Kick members from a group.
+
+```typescript
+async kickMember(
+  groupCode: string,
+  kickUids: string[],
+  refuseForever: boolean = false,
+  kickReason: string = ''
+)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+<ParamField path="kickUids" type="string[]" required>
+  Array of member UIDs to kick
+</ParamField>
+
+<ParamField path="refuseForever" type="boolean" default="false">
+  Whether to permanently ban from rejoining
+</ParamField>
+
+<ParamField path="kickReason" type="string" default="''">
+  Reason for kicking
+</ParamField>
+
+**Example:**
+
+```typescript
+await core.apis.GroupApi.kickMember(
+  '123456789',
+  ['u_member1', 'u_member2'],
+  false,
+  'Violation of group rules'
+);
+```
+
+### banMember
+
+Mute/unmute group members.
+
+```typescript
+async banMember(
+  groupCode: string,
+  memList: Array<{ uid: string, timeStamp: number }>
+)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+<ParamField path="memList" type="Array<{ uid: string, timeStamp: number }>" required>
+  Array of objects with uid and mute duration in seconds (0 to unmute)
+</ParamField>
+
+**Example:**
+
+```typescript
+// Mute for 10 minutes
+await core.apis.GroupApi.banMember('123456789', [
+  { uid: 'u_member1', timeStamp: 600 }
+]);
+
+// Unmute
+await core.apis.GroupApi.banMember('123456789', [
+  { uid: 'u_member1', timeStamp: 0 }
+]);
+```
+
+### banGroup
+
+Enable or disable mute all in a group.
+
+```typescript
+async banGroup(groupCode: string, shutUp: boolean)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+<ParamField path="shutUp" type="boolean" required>
+  true to enable mute all, false to disable
+</ParamField>
+
+### getGroupShutUpMemberList
+
+Get list of muted members in a group.
+
+```typescript
+async getGroupShutUpMemberList(groupCode: string): Promise<ShutUpGroupMember[]>
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+<ResponseField name="return" type="ShutUpGroupMember[]">
+  Array of muted member information
+</ResponseField>
+
+### setMemberCard
+
+Set a member's group card (nickname in group).
+
+```typescript
+async setMemberCard(
+  groupCode: string,
+  memberUid: string,
+  cardName: string
+)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+<ParamField path="memberUid" type="string" required>
+  Member UID
+</ParamField>
+
+<ParamField path="cardName" type="string" required>
+  New card name
+</ParamField>
+
+### setMemberRole
+
+Set a member's role (admin/member).
+
+```typescript
+async setMemberRole(
+  groupCode: string,
+  memberUid: string,
+  role: NTGroupMemberRole
+)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+<ParamField path="memberUid" type="string" required>
+  Member UID
+</ParamField>
+
+<ParamField path="role" type="NTGroupMemberRole" required>
+  New role (admin or member)
+</ParamField>
+
+## Group Settings
+
+### setGroupName
+
+Change group name.
+
+```typescript
+async setGroupName(groupCode: string, groupName: string)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+<ParamField path="groupName" type="string" required>
+  New group name
+</ParamField>
+
+### setGroupRemark
+
+Set remark/note for a group.
+
+```typescript
+async setGroupRemark(groupCode: string, remark: string)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+<ParamField path="remark" type="string" required>
+  Remark text
+</ParamField>
+
+### setGroupAvatar
+
+Set group avatar.
+
+```typescript
+async setGroupAvatar(groupCode: string, filePath: string)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+<ParamField path="filePath" type="string" required>
+  Path to image file
+</ParamField>
+
+### setGroupAddOption
+
+Set group join options.
+
+```typescript
+async setGroupAddOption(
+  groupCode: string,
+  option: {
+    addOption: number;
+    groupQuestion?: string;
+    groupAnswer?: string;
+  }
+)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+<ParamField path="option.addOption" type="number" required>
+  Join option: 4 (question + answer), 5 (question + admin approval)
+</ParamField>
+
+<ParamField path="option.groupQuestion" type="string">
+  Question for joining (if addOption is 4 or 5)
+</ParamField>
+
+<ParamField path="option.groupAnswer" type="string">
+  Answer to question (if addOption is 4)
+</ParamField>
+
+## Group Requests
+
+### getSingleScreenNotifies
+
+Get group join/invite notifications.
+
+```typescript
+async getSingleScreenNotifies(
+  doubt: boolean,
+  count: number
+): Promise<GroupNotify[]>
+```
+
+<ParamField path="doubt" type="boolean" required>
+  Whether to get doubt/verification requests
+</ParamField>
+
+<ParamField path="count" type="number" required>
+  Number of notifications to retrieve
+</ParamField>
+
+<ResponseField name="return" type="GroupNotify[]">
+  Array of group notifications
+</ResponseField>
+
+### handleGroupRequest
+
+Handle group join/invite requests.
+
+```typescript
+async handleGroupRequest(
+  doubt: boolean,
+  notify: GroupNotify,
+  operateType: NTGroupRequestOperateTypes,
+  reason?: string
+)
+```
+
+<ParamField path="doubt" type="boolean" required>
+  Whether this is a doubt request
+</ParamField>
+
+<ParamField path="notify" type="GroupNotify" required>
+  Group notification object
+</ParamField>
+
+<ParamField path="operateType" type="NTGroupRequestOperateTypes" required>
+  Operation type (approve/reject)
+</ParamField>
+
+<ParamField path="reason" type="string">
+  Reason for rejection (optional)
+</ParamField>
+
+### clearGroupNotifiesUnreadCount
+
+Clear unread count for group notifications.
+
+```typescript
+async clearGroupNotifiesUnreadCount(doubt: boolean)
+```
+
+<ParamField path="doubt" type="boolean" required>
+  Whether to clear doubt notifications
+</ParamField>
+
+## Group Actions
+
+### quitGroup
+
+Leave a group.
+
+```typescript
+async quitGroup(groupCode: string)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code to leave
+</ParamField>
+
+### quitGroupV2
+
+Leave a group with option to delete local messages.
+
+```typescript
+async quitGroupV2(
+  GroupCode: string,
+  needDeleteLocalMsg: boolean
+)
+```
+
+<ParamField path="GroupCode" type="string" required>
+  Group code to leave
+</ParamField>
+
+<ParamField path="needDeleteLocalMsg" type="boolean" required>
+  Whether to delete local messages
+</ParamField>
+
+## Group Files
+
+### creatGroupFileFolder
+
+Create a folder in group files.
+
+```typescript
+async creatGroupFileFolder(
+  groupCode: string,
+  folderName: string
+)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+<ParamField path="folderName" type="string" required>
+  Name of folder to create
+</ParamField>
+
+### delGroupFile
+
+Delete files from group.
+
+```typescript
+async delGroupFile(
+  groupCode: string,
+  files: Array<string>
+)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+<ParamField path="files" type="Array<string>" required>
+  Array of file IDs to delete
+</ParamField>
+
+### delGroupFileFolder
+
+Delete a folder from group files.
+
+```typescript
+async delGroupFileFolder(
+  groupCode: string,
+  folderId: string
+)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+<ParamField path="folderId" type="string" required>
+  Folder ID to delete
+</ParamField>
+
+### getGroupFileCount
+
+Get file count for groups.
+
+```typescript
+async getGroupFileCount(groupCodes: Array<string>)
+```
+
+<ParamField path="groupCodes" type="Array<string>" required>
+  Array of group codes
+</ParamField>
+
+## Group Announcements
+
+### publishGroupBulletin
+
+Publish a group announcement.
+
+```typescript
+async publishGroupBulletin(
+  groupCode: string,
+  content: string,
+  picInfo?: { id: string, width: number, height: number },
+  pinned: number = 0,
+  confirmRequired: number = 0
+)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+<ParamField path="content" type="string" required>
+  Announcement content
+</ParamField>
+
+<ParamField path="picInfo" type="object">
+  Optional image information
+</ParamField>
+
+<ParamField path="pinned" type="number" default="0">
+  Whether to pin announcement
+</ParamField>
+
+<ParamField path="confirmRequired" type="number" default="0">
+  Whether confirmation is required
+</ParamField>
+
+### deleteGroupBulletin
+
+Delete a group announcement.
+
+```typescript
+async deleteGroupBulletin(
+  groupCode: string,
+  noticeId: string
+)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+<ParamField path="noticeId" type="string" required>
+  Notice ID to delete
+</ParamField>
+
+### uploadGroupBulletinPic
+
+Upload image for group announcement.
+
+```typescript
+async uploadGroupBulletinPic(
+  groupCode: string,
+  imageurl: string
+)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+<ParamField path="imageurl" type="string" required>
+  Image URL or path
+</ParamField>
+
+## Group Essence
+
+### addGroupEssence
+
+Add a message to group essence.
+
+```typescript
+async addGroupEssence(groupCode: string, msgId: string)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+<ParamField path="msgId" type="string" required>
+  Message ID to add to essence
+</ParamField>
+
+### removeGroupEssence
+
+Remove a message from group essence.
+
+```typescript
+async removeGroupEssence(groupCode: string, msgId: string)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+<ParamField path="msgId" type="string" required>
+  Message ID to remove from essence
+</ParamField>
+
+### fetchGroupEssenceList
+
+Get list of essence messages.
+
+```typescript
+async fetchGroupEssenceList(groupCode: string)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+## Utilities
+
+### createGrayTip
+
+Create a gray tip message in group.
+
+```typescript
+async createGrayTip(groupCode: string, tip: string)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+<ParamField path="tip" type="string" required>
+  Tip text to display
+</ParamField>
+
+### getGroupRemainAtTimes
+
+Get remaining @all count for today.
+
+```typescript
+async getGroupRemainAtTimes(groupCode: string)
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+### getArkJsonGroupShare
+
+Get group share card in Ark JSON format.
+
+```typescript
+async getArkJsonGroupShare(groupCode: string): Promise<string>
+```
+
+<ParamField path="groupCode" type="string" required>
+  Group code
+</ParamField>
+
+<ResponseField name="return" type="string">
+  Ark JSON string for group share
+</ResponseField>

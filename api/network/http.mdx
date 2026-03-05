@@ -1,0 +1,224 @@
+---
+title: HTTP API
+description: Configure and use NapCat's HTTP API adapter for making requests
+---
+
+## Overview
+
+The HTTP API adapter allows applications to interact with NapCat by sending HTTP requests. It supports both standard HTTP endpoints and WebSocket connections over the same port.
+
+## Configuration
+
+Configure the HTTP server in your OneBot config:
+
+```json
+{
+  "network": {
+    "httpServers": [
+      {
+        "name": "http-server",
+        "enable": true,
+        "port": 3000,
+        "host": "127.0.0.1",
+        "enableCors": true,
+        "enableWebsocket": false,
+        "messagePostFormat": "array",
+        "token": "your_secret_token",
+        "debug": false
+      }
+    ]
+  }
+}
+```
+
+### Configuration Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enable` | boolean | `false` | Enable the HTTP server |
+| `port` | number | `3000` | Port to listen on |
+| `host` | string | `127.0.0.1` | Host address to bind |
+| `enableCors` | boolean | `true` | Enable CORS for cross-origin requests |
+| `enableWebsocket` | boolean | `false` | Enable WebSocket on the same port |
+| `messagePostFormat` | string | `array` | Message format (`array` or `string`) |
+| `token` | string | `""` | Access token for authentication |
+| `debug` | boolean | `false` | Enable debug logging |
+
+## Making Requests
+
+### Basic Request
+
+Make API calls by sending HTTP requests to `http://host:port/action_name`:
+
+```bash
+curl -X POST http://127.0.0.1:3000/send_private_msg \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": 12345678,
+    "message": "Hello from NapCat!"
+  }'
+```
+
+### GET Requests
+
+You can also use GET requests with query parameters:
+
+```bash
+curl "http://127.0.0.1:3000/get_login_info"
+```
+
+## Authentication
+
+NapCat supports two authentication methods:
+
+### 1. Authorization Header (Recommended)
+
+```bash
+curl -X POST http://127.0.0.1:3000/send_private_msg \
+  -H "Authorization: Bearer your_secret_token" \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": 12345678, "message": "Hello!"}'
+```
+
+### 2. Query Parameter
+
+```bash
+curl -X POST "http://127.0.0.1:3000/send_private_msg?access_token=your_secret_token" \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": 12345678, "message": "Hello!"}'
+```
+
+## Response Format
+
+All API responses follow the OneBot 11 standard format:
+
+### Success Response
+
+```json
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": {
+    "message_id": 123456
+  },
+  "echo": "optional_echo_value"
+}
+```
+
+### Error Response
+
+```json
+{
+  "status": "failed",
+  "retcode": 1404,
+  "message": "不支持的API send_invalid_action",
+  "wording": "不支持的API send_invalid_action",
+  "echo": "optional_echo_value"
+}
+```
+
+## Common Status Codes
+
+| HTTP Code | Retcode | Description |
+|-----------|---------|-------------|
+| 200 | 0 | Success |
+| 200 | 1400 | Invalid JSON format |
+| 200 | 1403 | Token verification failed |
+| 200 | 1404 | API action not found |
+| 403 | - | Authentication failed |
+
+## WebSocket on HTTP Port
+
+When `enableWebsocket` is enabled, you can connect to WebSocket on the same port:
+
+```javascript
+// Event WebSocket (receives events)
+const ws = new WebSocket('ws://127.0.0.1:3000/?access_token=your_secret_token');
+
+// API WebSocket (for API calls)
+const apiWs = new WebSocket('ws://127.0.0.1:3000/api?access_token=your_secret_token');
+```
+
+See the [WebSocket documentation](/api/network/websocket) for more details.
+
+## Echo Parameter
+
+Include an `echo` field in your request to track responses:
+
+```bash
+curl -X POST http://127.0.0.1:3000/send_private_msg \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": 12345678,
+    "message": "Hello!",
+    "echo": "request-123"
+  }'
+```
+
+The response will include the same echo value:
+
+```json
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": {...},
+  "echo": "request-123"
+}
+```
+
+## Request Body Format
+
+NapCat accepts:
+- Standard JSON (`application/json`)
+- URL-encoded form data (`application/x-www-form-urlencoded`)
+- JSON5 format (relaxed JSON syntax)
+- Requests without `Content-Type` header (auto-detected as JSON)
+
+## Multiple HTTP Servers
+
+You can run multiple HTTP servers on different ports:
+
+```json
+{
+  "network": {
+    "httpServers": [
+      {
+        "name": "public-api",
+        "enable": true,
+        "port": 3000,
+        "host": "0.0.0.0",
+        "token": "public_token"
+      },
+      {
+        "name": "internal-api",
+        "enable": true,
+        "port": 3001,
+        "host": "127.0.0.1",
+        "token": "internal_token"
+      }
+    ]
+  }
+}
+```
+
+## Implementation Details
+
+The HTTP adapter is implemented in `packages/napcat-onebot/network/http-server.ts` and uses:
+- **Express.js** for HTTP routing
+- **CORS** support for cross-origin requests
+- Support for request bodies up to **5000MB**
+- Automatic JSON5 parsing for flexible syntax
+
+## Best Practices
+
+1. **Always use authentication** - Set a strong token in production
+2. **Use HTTPS in production** - Place NapCat behind a reverse proxy with SSL
+3. **Bind to localhost** - Use `127.0.0.1` unless you need external access
+4. **Enable CORS carefully** - Only enable if you need browser access
+5. **Monitor the debug logs** - Set `debug: true` during development
+
+## Next Steps
+
+- Explore [WebSocket connections](/api/network/websocket) for real-time events
+- Set up [HTTP POST webhooks](/api/network/webhook) for event delivery
+- Check [API reference](/api/actions/overview) for available actions

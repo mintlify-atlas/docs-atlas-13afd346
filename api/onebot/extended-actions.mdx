@@ -1,0 +1,652 @@
+---
+title: Extended Actions
+description: NapCat-specific extensions and advanced features
+---
+
+## Overview
+
+NapCat provides extended actions beyond the standard OneBot 11 protocol. These actions enable advanced features specific to NapCat and the NTQQ platform.
+
+## Image & Media
+
+### ocr_image
+
+Perform OCR (text recognition) on an image.
+
+<Warning>
+  This action is only supported on Windows platform.
+</Warning>
+
+#### Request
+
+<ParamField path="image" type="string" required>
+  Image path, URL, or Base64-encoded image data
+</ParamField>
+
+#### Response
+
+<ResponseField name="texts" type="array">
+  Array of recognized text objects with position and content
+</ResponseField>
+
+<ResponseField name="language" type="string">
+  Detected language
+</ResponseField>
+
+#### Example
+
+```json
+// Request
+{
+  "image": "https://example.com/image.png"
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": {
+    "texts": [
+      {
+        "text": "Hello World",
+        "confidence": 0.95,
+        "coordinates": [[10, 20], [100, 20], [100, 40], [10, 40]]
+      }
+    ],
+    "language": "en"
+  }
+}
+```
+
+### fetch_custom_face
+
+Fetch custom emoji/sticker from user's collection.
+
+#### Request
+
+<ParamField path="count" type="number" default="48">
+  Number of custom faces to fetch
+</ParamField>
+
+### fetch_emoji_like
+
+Fetch emoji reactions available for messages.
+
+#### Request
+
+<ParamField path="emojiId" type="string" required>
+  Emoji ID
+</ParamField>
+
+<ParamField path="emojiType" type="string" required>
+  Emoji type
+</ParamField>
+
+<ParamField path="message_id" type="string" required>
+  Message ID
+</ParamField>
+
+<ParamField path="count" type="number" default="20">
+  Number of reactions to fetch
+</ParamField>
+
+### get_emoji_likes
+
+Get list of users who reacted with emoji to a message.
+
+## Status & Profile
+
+### set_online_status
+
+Set the bot's online status.
+
+#### Request
+
+<ParamField path="status" type="number | string" required>
+  Status code (see status list below)
+</ParamField>
+
+<ParamField path="ext_status" type="number | string" required>
+  Extended status code
+</ParamField>
+
+<ParamField path="battery_status" type="number | string" required>
+  Battery status (0-100)
+</ParamField>
+
+#### Status Codes
+
+**Basic Status:**
+- `10` - Online
+- `30` - Away
+- `40` - Invisible
+- `50` - Busy
+- `60` - Q Me
+- `70` - Do Not Disturb
+
+**Extended Status (ext_status):**
+- `1028` - Listening to Music
+- `1018` - Studying
+- `1016` - Sleeping
+- `1027` - Gaming (TIMI)
+- `1300` - Slacking Off
+- `1032` - Staying Up Late
+- `1401` - Emo
+- And many more...
+
+#### Example
+
+```json
+// Request - Set to "Busy"
+{
+  "status": 50,
+  "ext_status": 0,
+  "battery_status": 100
+}
+
+// Request - Set to "Listening to Music"
+{
+  "status": 10,
+  "ext_status": 1028,
+  "battery_status": 85
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": null
+}
+```
+
+### set_diy_online_status
+
+Set a custom DIY online status.
+
+#### Request
+
+<ParamField path="status" type="string" required>
+  Custom status text
+</ParamField>
+
+### set_qq_avatar
+
+Set the bot's QQ avatar/profile picture.
+
+#### Request
+
+<ParamField path="file" type="string" required>
+  Image path, URL, or Base64 data
+</ParamField>
+
+### set_qq_profile
+
+Update QQ profile information.
+
+#### Request
+
+<ParamField path="nickname" type="string">
+  Nickname
+</ParamField>
+
+<ParamField path="personal_note" type="string">
+  Personal signature
+</ParamField>
+
+<ParamField path="sex" type="number">
+  Gender: `0` (unknown), `1` (male), `2` (female)
+</ParamField>
+
+### set_long_nick
+
+Set extended nickname/signature.
+
+#### Request
+
+<ParamField path="longNick" type="string" required>
+  Extended nickname text
+</ParamField>
+
+### get_profile_like
+
+Get list of users who liked the bot's profile.
+
+### get_user_status
+
+Get a user's current online status.
+
+#### Request
+
+<ParamField path="user_id" type="string" required>
+  User QQ number
+</ParamField>
+
+## Group Extensions
+
+### get_group_info_ex
+
+Get extended group information (more details than standard `get_group_info`).
+
+#### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+### get_group_add_request
+
+Get pending group join requests.
+
+#### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+### set_group_remark
+
+Set remark/note for a group.
+
+#### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+<ParamField path="remark" type="string" required>
+  Group remark text
+</ParamField>
+
+### set_group_add_option
+
+Set group join approval options.
+
+#### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+<ParamField path="option" type="number" required>
+  Join option: `0` (anyone), `1` (approval required), `2` (reject all)
+</ParamField>
+
+### set_group_search
+
+Set whether group can be found in search.
+
+#### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+<ParamField path="enable" type="boolean" required>
+  Enable or disable group search
+</ParamField>
+
+### set_group_robot_add_option
+
+Set robot/bot join approval options for group.
+
+### set_group_kick_members
+
+Kick multiple members from group at once.
+
+#### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+<ParamField path="user_ids" type="array" required>
+  Array of user QQ numbers to kick
+</ParamField>
+
+<ParamField path="reject_add_request" type="boolean" default="false">
+  Reject future join requests
+</ParamField>
+
+### set_special_title
+
+Set a member's special title in group.
+
+#### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+<ParamField path="user_id" type="string" required>
+  Member QQ number
+</ParamField>
+
+<ParamField path="special_title" type="string" required>
+  Special title text (empty to remove)
+</ParamField>
+
+<ParamField path="duration" type="number" default="-1">
+  Title duration in seconds (-1 for permanent)
+</ParamField>
+
+### set_group_sign
+
+Perform group check-in/sign.
+
+#### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+### set_input_status
+
+Set typing status in a conversation.
+
+#### Request
+
+<ParamField path="user_id" type="string">
+  User QQ number (for private chat)
+</ParamField>
+
+<ParamField path="group_id" type="string">
+  Group number (for group chat)
+</ParamField>
+
+<ParamField path="status" type="number" required>
+  Input status: `1` (typing), `0` (not typing)
+</ParamField>
+
+## Group Album
+
+### get_qun_album_list
+
+Get list of group photo albums.
+
+#### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+### get_group_album_media_list
+
+Get media list from a group album.
+
+#### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+<ParamField path="album_id" type="string" required>
+  Album ID
+</ParamField>
+
+### upload_image_to_qun_album
+
+Upload image to group album.
+
+#### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+<ParamField path="album_id" type="string" required>
+  Album ID
+</ParamField>
+
+<ParamField path="image" type="string" required>
+  Image path or URL
+</ParamField>
+
+### do_group_album_comment
+
+Comment on a group album photo.
+
+#### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+<ParamField path="album_id" type="string" required>
+  Album ID
+</ParamField>
+
+<ParamField path="photo_id" type="string" required>
+  Photo ID
+</ParamField>
+
+<ParamField path="comment" type="string" required>
+  Comment text
+</ParamField>
+
+### set_group_album_media_like
+
+Like a group album photo.
+
+### del_group_album_media
+
+Delete media from group album.
+
+## Advanced Features
+
+### get_rkey
+
+Get Rkey for advanced operations.
+
+### get_clientkey
+
+Get client key for authentication.
+
+### get_credentials
+
+Get credentials (cookies, csrf token, etc.).
+
+#### Response
+
+<ResponseField name="cookies" type="string">
+  Cookie string
+</ResponseField>
+
+<ResponseField name="csrf_token" type="string">
+  CSRF token
+</ResponseField>
+
+### get_ai_characters
+
+Get available AI character list.
+
+#### Request
+
+<ParamField path="chat_type" type="number" required>
+  Chat type: `1` (private), `2` (group)
+</ParamField>
+
+### get_mini_app_ark
+
+Get mini app ARK message data.
+
+#### Request
+
+<ParamField path="app_id" type="string" required>
+  Mini app ID
+</ParamField>
+
+### share_contact
+
+Share contact card.
+
+#### Request
+
+<ParamField path="group_id" type="string">
+  Target group number
+</ParamField>
+
+<ParamField path="user_id" type="string">
+  Target user QQ number
+</ParamField>
+
+<ParamField path="phone_number" type="string">
+  Phone number to share
+</ParamField>
+
+### translate_en_word_to_zn
+
+Translate English word to Chinese.
+
+#### Request
+
+<ParamField path="word" type="string" required>
+  English word to translate
+</ParamField>
+
+### create_collection
+
+Add message to favorites/collection.
+
+#### Request
+
+<ParamField path="message_id" type="string" required>
+  Message ID to collect
+</ParamField>
+
+### get_collection_list
+
+Get list of collected/favorited messages.
+
+#### Request
+
+<ParamField path="category" type="number" default="0">
+  Collection category
+</ParamField>
+
+<ParamField path="count" type="number" default="50">
+  Number of items to retrieve
+</ParamField>
+
+### get_robot_uin_range
+
+Get robot/bot QQ number range information.
+
+### send_packet
+
+Send raw protocol packet (advanced).
+
+#### Request
+
+<ParamField path="cmd" type="string" required>
+  Command name
+</ParamField>
+
+<ParamField path="data" type="string" required>
+  Packet data (hex string)
+</ParamField>
+
+### bot_exit
+
+Gracefully exit/shutdown the bot.
+
+#### Request
+
+No parameters required.
+
+### click_inline_keyboard_button
+
+Click an inline keyboard button in a bot message.
+
+#### Request
+
+<ParamField path="message_id" type="string" required>
+  Message ID containing the keyboard
+</ParamField>
+
+<ParamField path="button_id" type="string" required>
+  Button ID to click
+</ParamField>
+
+<ParamField path="data" type="string" required>
+  Button callback data
+</ParamField>
+
+## System Actions
+
+### get_version_info
+
+Get NapCat version information.
+
+### get_status
+
+Get bot online status and statistics.
+
+### get_csrf_token
+
+Get CSRF token for web operations.
+
+### can_send_image
+
+Check if bot can send images.
+
+### can_send_record
+
+Check if bot can send voice records.
+
+### set_restart
+
+Restart the bot.
+
+#### Request
+
+<ParamField path="delay" type="number" default="0">
+  Restart delay in milliseconds
+</ParamField>
+
+### clean_cache
+
+Clear bot's cache.
+
+## Poke Actions
+
+### send_poke
+
+Send a poke/nudge to user or group.
+
+#### Request
+
+<ParamField path="user_id" type="string">
+  User QQ number (for private poke)
+</ParamField>
+
+<ParamField path="group_id" type="string">
+  Group number (for group poke)
+</ParamField>
+
+### friend_poke
+
+Poke a friend.
+
+#### Request
+
+<ParamField path="user_id" type="string" required>
+  Friend QQ number
+</ParamField>
+
+### group_poke
+
+Poke in a group.
+
+#### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+<ParamField path="user_id" type="string" required>
+  Target member QQ number
+</ParamField>
+
+<Note>
+  Extended actions are specific to NapCat and may not be available in other OneBot implementations. Always check the action availability before using in production.
+</Note>

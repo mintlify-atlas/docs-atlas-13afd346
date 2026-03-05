@@ -1,0 +1,272 @@
+---
+title: Events Overview
+description: Understanding the OneBot 11 event system in NapCat
+---
+
+## Introduction
+
+NapCat implements the OneBot 11 event system to notify your application about various activities in QQ. Events are sent to your bot via the configured network adapter (HTTP POST, WebSocket, or Webhook) whenever something happens.
+
+## Event Structure
+
+All OneBot 11 events share a common base structure:
+
+<ResponseField name="time" type="number" required>
+  Unix timestamp (in seconds) when the event occurred
+</ResponseField>
+
+<ResponseField name="self_id" type="number" required>
+  The bot's QQ number
+</ResponseField>
+
+<ResponseField name="post_type" type="string" required>
+  The type of event. Possible values:
+  - `message` - Message events
+  - `message_sent` - Message sent by the bot
+  - `notice` - Notice events
+  - `request` - Request events
+  - `meta_event` - Meta events (heartbeat, lifecycle)
+</ResponseField>
+
+## Event Types
+
+### Message Events
+
+Message events are triggered when the bot receives a message. There are two main types:
+
+- **Private Messages** - Direct messages from friends or temporary chats
+- **Group Messages** - Messages in group chats
+
+Learn more in [Message Events](/api/events/message-events).
+
+### Notice Events
+
+Notice events inform your bot about various activities and changes:
+
+- Group member changes (join, leave, kick)
+- Admin status changes
+- Group file uploads
+- Message recalls
+- Friend additions
+- Poke/nudge actions
+- Group bans and mutes
+- And many more
+
+Learn more in [Notice Events](/api/events/notice-events).
+
+### Request Events
+
+Request events occur when someone wants to interact with the bot:
+
+- Friend requests
+- Group invitations
+- Group join requests
+
+Learn more in [Request Events](/api/events/request-events).
+
+### Meta Events
+
+Meta events provide information about the bot's status:
+
+- **Heartbeat** - Periodic status updates
+- **Lifecycle** - Bot startup and shutdown events
+
+## Receiving Events
+
+### HTTP POST
+
+When using HTTP POST adapter, events are sent as POST requests to your configured URL:
+
+```json
+POST /your-endpoint
+Content-Type: application/json
+
+{
+  "time": 1709641234,
+  "self_id": 123456789,
+  "post_type": "message",
+  "message_type": "private",
+  "sub_type": "friend",
+  "message_id": 123456,
+  "user_id": 987654321,
+  "message": [
+    {
+      "type": "text",
+      "data": {
+        "text": "Hello!"
+      }
+    }
+  ],
+  "raw_message": "Hello!",
+  "font": 14,
+  "sender": {
+    "user_id": 987654321,
+    "nickname": "Friend Name",
+    "sex": "unknown",
+    "age": 0
+  }
+}
+```
+
+### WebSocket
+
+With WebSocket adapter, events are pushed to connected clients in real-time:
+
+```javascript
+const ws = new WebSocket('ws://localhost:3001');
+
+ws.on('message', (data) => {
+  const event = JSON.parse(data);
+  console.log('Received event:', event.post_type);
+  
+  // Handle different event types
+  if (event.post_type === 'message') {
+    // Handle message
+  } else if (event.post_type === 'notice') {
+    // Handle notice
+  } else if (event.post_type === 'request') {
+    // Handle request
+  }
+});
+```
+
+### Webhook
+
+Webhook works similarly to HTTP POST but with additional configuration options for authentication and filtering.
+
+## Event Handling Best Practices
+
+### 1. Check Event Types
+
+Always check the `post_type` field to determine how to handle the event:
+
+```javascript
+function handleEvent(event) {
+  switch (event.post_type) {
+    case 'message':
+      return handleMessage(event);
+    case 'notice':
+      return handleNotice(event);
+    case 'request':
+      return handleRequest(event);
+    case 'meta_event':
+      return handleMeta(event);
+    default:
+      console.warn('Unknown event type:', event.post_type);
+  }
+}
+```
+
+### 2. Use Sub-types for Specific Logic
+
+Most events have a sub-type field for more granular handling:
+
+```javascript
+function handleNotice(event) {
+  if (event.notice_type === 'group_increase') {
+    console.log(`New member ${event.user_id} joined group ${event.group_id}`);
+  } else if (event.notice_type === 'group_decrease') {
+    console.log(`Member ${event.user_id} left group ${event.group_id}`);
+  }
+}
+```
+
+### 3. Handle Errors Gracefully
+
+Always implement error handling for event processing:
+
+```javascript
+try {
+  await processEvent(event);
+} catch (error) {
+  console.error('Error processing event:', error);
+  // Log for debugging but don't crash
+}
+```
+
+### 4. Respond to Events
+
+Some events support quick operations by returning a response:
+
+```javascript
+// HTTP POST handler
+app.post('/event', (req, res) => {
+  const event = req.body;
+  
+  if (event.post_type === 'message') {
+    // Quick reply by returning action
+    res.json({
+      reply: 'Auto reply message',
+      at_sender: true  // For group messages
+    });
+  } else {
+    res.status(204).send();  // No response needed
+  }
+});
+```
+
+## Example: Complete Event Handler
+
+Here's a complete example of handling different event types:
+
+```javascript
+const express = require('express');
+const app = express();
+
+app.use(express.json());
+
+app.post('/napcat', async (req, res) => {
+  const event = req.body;
+  
+  try {
+    switch (event.post_type) {
+      case 'message':
+        if (event.message_type === 'private') {
+          console.log(`Private message from ${event.user_id}: ${event.raw_message}`);
+        } else if (event.message_type === 'group') {
+          console.log(`Group message in ${event.group_id} from ${event.user_id}: ${event.raw_message}`);
+        }
+        break;
+        
+      case 'notice':
+        if (event.notice_type === 'group_increase') {
+          console.log(`Welcome new member ${event.user_id} to group ${event.group_id}`);
+        } else if (event.notice_type === 'group_recall') {
+          console.log(`Message ${event.message_id} was recalled in group ${event.group_id}`);
+        }
+        break;
+        
+      case 'request':
+        if (event.request_type === 'friend') {
+          console.log(`Friend request from ${event.user_id}: ${event.comment}`);
+          // You can approve by calling set_friend_add_request API
+        } else if (event.request_type === 'group') {
+          console.log(`Group request for ${event.group_id} from ${event.user_id}`);
+        }
+        break;
+        
+      case 'meta_event':
+        if (event.meta_event_type === 'heartbeat') {
+          console.log('Heartbeat:', event.status);
+        }
+        break;
+    }
+    
+    res.status(204).send();
+  } catch (error) {
+    console.error('Error handling event:', error);
+    res.status(500).send();
+  }
+});
+
+app.listen(5700, () => {
+  console.log('Event server listening on port 5700');
+});
+```
+
+## Next Steps
+
+- Learn about [Message Events](/api/events/message-events) in detail
+- Explore [Notice Events](/api/events/notice-events) for activity monitoring
+- Understand [Request Events](/api/events/request-events) for handling interactions
+- Check the [OneBot Actions](/api/onebot/overview) to respond to events

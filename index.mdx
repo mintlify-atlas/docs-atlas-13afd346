@@ -1,97 +1,104 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "NapCat Documentation"
+description: "Modern protocol-side framework based on NTQQ for building QQ bots with OneBot 11 standard support"
 ---
 
-## Setting up
+<div className="relative bg-gradient-to-br from-[#91a8c6] to-[#cdd3df] rounded-xl p-12 mb-8 text-white">
+  <h1 className="text-5xl font-bold mb-4">NapCat</h1>
+  <p className="text-xl mb-6 opacity-90">
+    Modern protocol-side framework based on NTQQ for building QQ bots
+  </p>
+  <div className="flex gap-4">
+    <a 
+      href="/quickstart" 
+      className="inline-block bg-white text-[#91a8c6] px-6 py-3 rounded-2xl font-semibold hover:bg-opacity-90 transition"
+    >
+      Get Started
+    </a>
+    <a 
+      href="https://github.com/NapNeko/NapCatQQ" 
+      className="inline-block bg-white bg-opacity-20 backdrop-blur px-6 py-3 rounded-2xl font-semibold hover:bg-opacity-30 transition"
+    >
+      View on GitHub
+    </a>
+  </div>
+</div>
 
-Get your documentation site up and running in minutes.
+## Key Features
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+NapCat provides a comprehensive framework for building QQ bots with modern architecture and extensive functionality.
 
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="OneBot 11 Protocol" icon="plug">
+    Full implementation of the OneBot 11 standard for seamless bot integration
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Multiple Adapters" icon="network-wired">
+    Support for HTTP, WebSocket, and reverse WebSocket connections
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Built-in WebUI" icon="window">
+    Management interface for monitoring and configuring your bot
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Native Packet Handling" icon="box">
+    Low-level packet inspection and manipulation capabilities
   </Card>
-</Columns>
+  <Card title="Plugin System" icon="puzzle-piece">
+    Extensible architecture for custom functionality
+  </Card>
+  <Card title="Database Support" icon="database">
+    SQLite integration for data persistence and querying
+  </Card>
+</CardGroup>
 
-## Create beautiful pages
+## Quick Navigation
 
-Everything you need to create world-class documentation.
+<CardGroup cols={3}>
+  <Card title="Getting Started" icon="rocket" href="/quickstart">
+    Get up and running with NapCat in minutes
+  </Card>
+  <Card title="Core Concepts" icon="book" href="/concepts/architecture">
+    Understand the framework architecture
+  </Card>
+  <Card title="Configuration" icon="sliders" href="/config/napcat-config">
+    Configure NapCat for your needs
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/core/overview">
+    Explore the complete API documentation
+  </Card>
+  <Card title="Guides" icon="map" href="/guides/deployment">
+    Follow step-by-step deployment guides
+  </Card>
+  <Card title="Community" icon="users" href="/resources/community">
+    Join the NapCat community
+  </Card>
+</CardGroup>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+## Why NapCat?
 
-## Need inspiration?
+<AccordionGroup>
+  <Accordion title="Easy to Use">
+    NapCat provides a straightforward setup process and intuitive APIs, making it accessible for beginners while offering powerful features for advanced users.
+  </Accordion>
+  <Accordion title="Fast and Efficient">
+    Optimized for performance, NapCat runs smoothly even on low-resource systems with minimal memory footprint.
+  </Accordion>
+  <Accordion title="Rich API Interface">
+    Comprehensive implementation of the OneBot 11 standard plus extended APIs for advanced bot functionality.
+  </Accordion>
+  <Accordion title="Stable and Reliable">
+    Actively maintained with continuous development, bug fixes, and feature updates from the community.
+  </Accordion>
+</AccordionGroup>
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+## What You'll Learn
+
+This documentation covers everything you need to build and deploy QQ bots with NapCat:
+
+- **Installation**: Set up NapCat in different environments (Shell and Framework modes)
+- **Configuration**: Configure network adapters, login methods, and bot behavior
+- **API Usage**: Send messages, manage groups, handle events, and more
+- **Advanced Features**: Packet inspection, database access, custom adapters, and plugins
+- **Deployment**: Best practices for production deployments
+
+<Note>
+NapCat is a non-profit project. For integration issues, basic questions, or underlying framework issues, please search for solutions on your own — the project community does not provide such support.
+</Note>

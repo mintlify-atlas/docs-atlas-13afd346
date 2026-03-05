@@ -1,0 +1,371 @@
+---
+title: Contributing to NapCat
+description: Guidelines for contributing to the NapCat project
+---
+
+## Welcome Contributors
+
+Thank you for your interest in contributing to NapCat! This guide will help you get started with contributing to the project.
+
+## Project Status
+
+NapCat is currently looking for a new primary maintainer. If you're interested in taking on this role, please contact nanaeonn@outlook.com.
+
+## Code of Conduct
+
+NapCat follows the [Contributor Covenant Code of Conduct](https://www.contributor-covenant.org/version/2/0/code_of_conduct.html). By participating, you are expected to uphold this code.
+
+### Our Standards
+
+Examples of behavior that contributes to a positive environment:
+
+- Demonstrating empathy and kindness toward other people
+- Being respectful of differing opinions, viewpoints, and experiences
+- Giving and gracefully accepting constructive feedback
+- Accepting responsibility and apologizing to those affected by our mistakes
+- Focusing on what is best for the overall community
+
+Examples of unacceptable behavior:
+
+- The use of sexualized language or imagery
+- Trolling, insulting or derogatory comments, and personal or political attacks
+- Public or private harassment
+- Publishing others' private information without explicit permission
+- Other conduct which could reasonably be considered inappropriate
+
+## Ways to Contribute
+
+### Reporting Bugs
+
+Before creating a bug report:
+
+1. **Search existing issues** - Check if the issue has already been reported
+2. **Verify the bug** - Try to reproduce it with the latest version
+3. **Gather information** - Collect relevant details about the issue
+
+When creating a bug report, include:
+
+- **Clear title** - Descriptive summary of the issue
+- **Steps to reproduce** - Detailed steps to reproduce the behavior
+- **Expected behavior** - What you expected to happen
+- **Actual behavior** - What actually happened
+- **Environment details**:
+  - NapCat version
+  - NTQQ version
+  - Operating system and version
+  - Node.js version (if applicable)
+- **Configuration** - Relevant config (remove sensitive tokens)
+- **Logs** - Error messages and relevant log output
+- **Screenshots** - If applicable
+
+### Suggesting Enhancements
+
+Enhancement suggestions are welcome! Include:
+
+- **Clear description** - Explain the enhancement and why it's useful
+- **Use cases** - Describe scenarios where this would be helpful
+- **Alternatives** - Any alternative solutions you've considered
+- **Implementation ideas** - If you have thoughts on how to implement it
+
+### Contributing Code
+
+#### Getting Started
+
+1. **Fork the repository**
+   ```bash
+   # Fork on GitHub, then clone your fork
+   git clone https://github.com/YOUR_USERNAME/NapCatQQ.git
+   cd NapCatQQ
+   ```
+
+2. **Set up development environment**
+   ```bash
+   # Install dependencies
+   npm install
+   
+   # Build the project
+   npm run build
+   ```
+
+3. **Create a branch**
+   ```bash
+   git checkout -b feature/my-new-feature
+   # or
+   git checkout -b fix/issue-description
+   ```
+
+#### Making Changes
+
+1. **Write clean code**
+   - Follow existing code style
+   - Use meaningful variable and function names
+   - Add comments for complex logic
+   - Keep functions focused and small
+
+2. **Test your changes**
+   - Test all affected functionality
+   - Test with different configurations
+   - Verify no regressions
+
+3. **Commit your changes**
+   ```bash
+   git add .
+   git commit -m "feat: add new feature description"
+   ```
+
+   Use conventional commit messages:
+   - `feat:` - New feature
+   - `fix:` - Bug fix
+   - `docs:` - Documentation changes
+   - `style:` - Code style changes (formatting, etc.)
+   - `refactor:` - Code refactoring
+   - `test:` - Adding or updating tests
+   - `chore:` - Maintenance tasks
+
+4. **Push to your fork**
+   ```bash
+   git push origin feature/my-new-feature
+   ```
+
+5. **Create a Pull Request**
+   - Go to the original repository on GitHub
+   - Click "New Pull Request"
+   - Select your fork and branch
+   - Fill out the PR template
+
+#### Pull Request Guidelines
+
+Your PR should:
+
+- **Have a clear title** - Summarize the changes
+- **Include description** - Explain what and why
+- **Reference issues** - Link to related issues (e.g., "Fixes #123")
+- **Pass all checks** - Ensure CI tests pass
+- **Be focused** - One feature or fix per PR
+- **Update documentation** - If adding features or changing behavior
+
+### Contributing Documentation
+
+Documentation improvements are highly valued!
+
+- Fix typos and grammatical errors
+- Improve clarity and examples
+- Add missing documentation
+- Translate documentation to other languages
+- Create tutorials and guides
+
+### Helping Others
+
+You can contribute by:
+
+- Answering questions in community groups
+- Helping others troubleshoot issues
+- Reviewing pull requests
+- Testing new features
+- Sharing your NapCat projects and experiences
+
+## Development Guidelines
+
+### Project Structure
+
+```
+NapCatQQ/
+├── packages/
+│   ├── napcat-core/        # Core functionality
+│   ├── napcat-onebot/      # OneBot 11 implementation
+│   │   ├── network/        # Network adapters
+│   │   ├── action/         # API actions
+│   │   └── event/          # Event handlers
+│   └── napcat-protocol/    # Protocol definitions
+├── docs/                   # Documentation
+└── scripts/                # Build and utility scripts
+```
+
+### Code Style
+
+- Use TypeScript for type safety
+- Follow ESLint rules (if configured)
+- Use consistent indentation (2 spaces)
+- Use meaningful names
+- Add JSDoc comments for public APIs
+- Keep line length reasonable (< 120 characters)
+
+### Network Adapter Development
+
+When developing network adapters:
+
+1. **Extend IOB11NetworkAdapter**
+   ```typescript
+   import { IOB11NetworkAdapter } from './adapter';
+   
+   export class MyAdapter extends IOB11NetworkAdapter<MyConfig> {
+     // Implementation
+   }
+   ```
+
+2. **Implement required methods**
+   - `onEvent()` - Handle outgoing events
+   - `open()` - Initialize the adapter
+   - `close()` - Cleanup and shutdown
+   - `reload()` - Handle configuration changes
+
+3. **Add configuration schema**
+   ```typescript
+   const MyConfigSchema = Type.Object({
+     name: Type.String({ default: 'my-adapter' }),
+     enable: Type.Boolean({ default: false }),
+     // Additional fields
+   });
+   ```
+
+4. **Handle authentication**
+   - Support token authentication
+   - Validate credentials
+   - Return appropriate error codes
+
+5. **Log appropriately**
+   ```typescript
+   this.logger.log('[MyAdapter] Info message');
+   this.logger.logError('[MyAdapter] Error message');
+   this.logger.logDebug('[MyAdapter] Debug message');
+   ```
+
+### API Action Development
+
+When adding new API actions:
+
+1. **Create action class**
+   ```typescript
+   export class MyAction extends OneBotAction {
+     actionName = ActionName.MyAction;
+     
+     async _handle(payload: any) {
+       // Implementation
+       return OB11Response.ok(result);
+     }
+   }
+   ```
+
+2. **Add to action router**
+   - Register in action map
+   - Define parameter schema
+   - Add to ActionName enum
+
+3. **Document the API**
+   - Add to API documentation
+   - Include examples
+   - Document all parameters
+
+### Testing
+
+When adding features:
+
+1. **Manual testing**
+   - Test the happy path
+   - Test error conditions
+   - Test edge cases
+   - Test with different configurations
+
+2. **Integration testing**
+   - Test with real NTQQ instance
+   - Test all network adapters
+   - Verify events are delivered
+   - Confirm API responses are correct
+
+3. **Document test results**
+   - Include test results in PR
+   - Note any limitations or known issues
+
+## License and Authorization
+
+### Important License Information
+
+NapCat uses a hybrid license:
+
+1. Third-party library code follows original open-source licenses
+2. This project has obtained authorization from certain projects
+3. Remaining logic code is governed by the [repository license](https://github.com/NapNeko/NapCatQQ/blob/main/LICENSE)
+
+### Development Authorization
+
+**Developing any project based on NapCat code without prior authorization from the repository's main author is prohibited.**
+
+If you want to create a derivative project:
+
+1. Contact the main author for authorization
+2. Clearly state your intended use
+3. Follow all license requirements
+4. Respect the terms of authorization
+
+### Legal Compliance
+
+Please comply with local laws and regulations when using and contributing to this project. Any issues arising from misuse are the responsibility of the user.
+
+## Community Guidelines
+
+### Where to Discuss
+
+- **GitHub Issues** - Bug reports and feature requests
+- **Pull Requests** - Code review and discussion
+- **QQ Groups** - General discussion and support
+
+### What Not to Do
+
+- **Don't mention NapCat in other communities** - Do not mention this project in other protocol-side or related application-side project communities to avoid disputes
+- **Don't demand support** - This is a non-profit project; contributors volunteer their time
+- **Don't post off-topic content** - Keep discussions relevant
+- **Don't spam** - Respect others' time and attention
+
+### Community Support Expectations
+
+This is a non-profit project. The community does not provide support for:
+
+- Basic integration questions (search for solutions)
+- General programming questions
+- Underlying framework issues
+- Third-party application issues
+
+Please search for solutions independently for these types of issues.
+
+## Getting Help with Contributing
+
+If you need help with contributing:
+
+1. Check existing documentation
+2. Review similar code in the project
+3. Ask in the community groups
+4. Comment on related issues or PRs
+
+## Recognition
+
+Contributors are recognized in:
+
+- GitHub contributors page
+- Release notes (for significant contributions)
+- Project README (for major contributors)
+
+All contributions, no matter how small, are valued!
+
+## Contact
+
+For questions about contributing or becoming a maintainer:
+
+- **Email**: nanaeonn@outlook.com
+- **GitHub**: [NapNeko/NapCatQQ](https://github.com/NapNeko/NapCatQQ)
+
+## Thank You!
+
+Thank you for contributing to NapCat! Your efforts help make this project better for everyone.
+
+---
+
+### Attribution
+
+This Code of Conduct is adapted from the [Contributor Covenant](https://www.contributor-covenant.org), version 2.0, available at https://www.contributor-covenant.org/version/2/0/code_of_conduct.html.
+
+## Next Steps
+
+- Read the [Development Guide](/guide/getting-started/installation)
+- Check [Architecture Overview](/guide/concepts/architecture)
+- Join the [Community](/resources/community)
+- Review [Open Issues](https://github.com/NapNeko/NapCatQQ/issues)

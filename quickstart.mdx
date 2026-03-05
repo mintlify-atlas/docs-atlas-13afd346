@@ -1,80 +1,345 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: "Quickstart Guide"
+description: "Get your NapCat bot up and running in minutes"
 ---
 
-## Get started in three steps
+## Overview
 
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+This quickstart guide will help you set up NapCat and send your first message in about 5-10 minutes. We'll use Framework Mode which is the easiest way to get started.
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+This guide assumes you have QQ installed on your system. If you don't have QQ, download it from the [official QQ website](https://im.qq.com/).
 </Note>
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+- **QQ** installed (Windows/macOS/Linux)
+- **Node.js** 18.0.0 or higher
+- A **QQ account** for your bot
+- **Basic command line** knowledge
+
+## Step 1: Download NapCat
+
+<Steps>
+  <Step title="Get the latest release">
+    Download the latest version of NapCat from the [GitHub Releases page](https://github.com/NapNeko/NapCatQQ/releases/).
+    
+    Choose the appropriate package for your operating system:
+    - Windows: `NapCat-win-x64.zip`
+    - macOS: `NapCat-darwin-x64.zip`
+    - Linux: `NapCat-linux-x64.zip`
+  </Step>
+  
+  <Step title="Extract the archive">
+    Extract the downloaded archive to a location of your choice:
+    
+    ```bash
+    # Example for Linux/macOS
+    unzip NapCat-linux-x64.zip -d napcat
+    cd napcat
+    ```
+  </Step>
+</Steps>
+
+## Step 2: Initial Configuration
+
+Create a basic configuration file to get started:
+
+<Steps>
+  <Step title="Create config directory">
+    ```bash
+    mkdir -p config
+    ```
+  </Step>
+  
+  <Step title="Create OneBot config">
+    Create `config/onebot11.json` with the following content:
+    
+    ```json config/onebot11.json
+    {
+      "http": [
+        {
+          "enable": true,
+          "host": "0.0.0.0",
+          "port": 3000,
+          "secret": "",
+          "enableHeart": true,
+          "enablePost": false
+        }
+      ],
+      "ws": [
+        {
+          "enable": false,
+          "host": "0.0.0.0",
+          "port": 3001
+        }
+      ],
+      "reverseWs": {
+        "enable": false,
+        "urls": []
+      },
+      "debug": false,
+      "heartInterval": 30000,
+      "messagePostFormat": "array",
+      "enableLocalFile2Url": true,
+      "musicSignUrl": "",
+      "reportSelfMessage": false,
+      "token": ""
+    }
+    ```
+    
+    This enables an HTTP API server on port 3000.
+  </Step>
+</Steps>
+
+## Step 3: Launch NapCat
+
+<Tabs>
+  <Tab title="Windows">
+    Double-click `napcat.exe` or run from command prompt:
+    
+    ```cmd
+    napcat.exe
+    ```
+  </Tab>
+  
+  <Tab title="Linux/macOS">
+    Make the binary executable and run it:
+    
+    ```bash
+    chmod +x napcat
+    ./napcat
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+On first launch, NapCat will show you the WebUI URL with a token. Save this URL - you'll use it to access the management interface.
+</Note>
+
+## Step 4: Login to QQ
+
+<Steps>
+  <Step title="Open WebUI">
+    Open the WebUI URL shown in the console output (e.g., `http://127.0.0.1:6099/webui/?token=xxxxx`)
+  </Step>
+  
+  <Step title="Choose login method">
+    You have three options:
+    
+    - **QR Code Login** (Recommended): Scan QR code with your phone
+    - **Quick Login**: Use saved account if you've logged in before
+    - **Password Login**: Login with account and password
+  </Step>
+  
+  <Step title="Complete login">
+    Follow the on-screen instructions to complete the login process.
+    
+    Once logged in, you'll see "登录成功" (Login Successful) and your account information.
+  </Step>
+</Steps>
+
+## Step 5: Verify Connection
+
+Test that your bot is working by calling the API:
+
+```bash cURL
+curl http://localhost:3000/get_login_info
+```
+
+You should receive a response like:
+
+```json
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": {
+    "user_id": 123456789,
+    "nickname": "YourBotName"
+  },
+  "message": "",
+  "wording": "",
+  "echo": ""
+}
+```
+
+<Check>
+If you see a valid response with your bot's user ID and nickname, your bot is ready to use!
+</Check>
+
+## Step 6: Send Your First Message
+
+Let's send a test message to yourself or a friend:
+
+<CodeGroup>
+```bash cURL
+curl -X POST http://localhost:3000/send_private_msg \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": 987654321,
+    "message": "Hello from NapCat!"
+  }'
+```
+
+```javascript Node.js
+const axios = require('axios');
+
+const NAPCAT_API = 'http://localhost:3000';
+
+async function sendMessage() {
+  const response = await axios.post(`${NAPCAT_API}/send_private_msg`, {
+    user_id: 987654321, // Replace with target QQ number
+    message: 'Hello from NapCat!'
+  });
+  
+  console.log('Message sent:', response.data);
+}
+
+sendMessage();
+```
+
+```python Python
+import requests
+
+NAPCAT_API = 'http://localhost:3000'
+
+def send_message():
+    response = requests.post(f'{NAPCAT_API}/send_private_msg', json={
+        'user_id': 987654321,  # Replace with target QQ number
+        'message': 'Hello from NapCat!'
+    })
+    
+    print('Message sent:', response.json())
+
+if __name__ == '__main__':
+    send_message()
+```
+</CodeGroup>
+
+Replace `987654321` with a real QQ number (you can send to yourself first for testing).
+
+## Step 7: Receive Messages
+
+To receive messages, you have two options:
+
+### Option 1: WebSocket (Recommended)
+
+Update your `config/onebot11.json` to enable WebSocket:
+
+```json
+{
+  "ws": [
+    {
+      "enable": true,
+      "host": "0.0.0.0",
+      "port": 3001
+    }
+  ]
+}
+```
+
+Restart NapCat and connect with a WebSocket client:
+
+```javascript Node.js WebSocket Client
+const WebSocket = require('ws');
+
+const ws = new WebSocket('ws://localhost:3001');
+
+ws.on('open', () => {
+  console.log('Connected to NapCat');
+});
+
+ws.on('message', (data) => {
+  const event = JSON.parse(data);
+  
+  if (event.post_type === 'message') {
+    console.log('Received message:');
+    console.log('Sender:', event.user_id);
+    console.log('Content:', event.raw_message);
+    
+    // Echo the message back
+    if (event.message_type === 'private') {
+      ws.send(JSON.stringify({
+        action: 'send_private_msg',
+        params: {
+          user_id: event.user_id,
+          message: `You said: ${event.raw_message}`
+        }
+      }));
+    }
+  }
+});
+```
+
+### Option 2: HTTP Webhook
+
+Enable webhook in `config/onebot11.json`:
+
+```json
+{
+  "http": [
+    {
+      "enable": true,
+      "host": "0.0.0.0",
+      "port": 3000,
+      "secret": "",
+      "enablePost": true,
+      "postUrls": ["http://your-server.com:8080/webhook"]
+    }
+  ]
+}
+```
+
+NapCat will POST events to your webhook URL.
+
+## Next Steps
+
+Congratulations! You've successfully set up NapCat and sent your first message. Here's what to explore next:
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="sliders" href="/config/napcat-config">
+    Learn about all configuration options
+  </Card>
+  <Card title="Message Handling" icon="message" href="/guides/message-handling">
+    Work with different message types and media
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/onebot/overview">
+    Explore all available API actions
+  </Card>
+  <Card title="Deployment" icon="server" href="/guides/deployment">
+    Deploy your bot to production
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Port already in use">
+    If port 3000 or 3001 is already in use, change the port number in `config/onebot11.json` to an available port (e.g., 3002, 8080).
+  </Accordion>
+  
+  <Accordion title="Cannot connect to API">
+    Make sure:
+    - NapCat is running and shows "HTTP Server started" in the logs
+    - You're using the correct host and port
+    - Firewall allows the connection
+  </Accordion>
+  
+  <Accordion title="Login failed">
+    Try these solutions:
+    - Refresh the QR code if it expired
+    - Use quick login if you've logged in before
+    - Check if QQ account has restrictions
+  </Accordion>
+  
+  <Accordion title="Message not received">
+    Verify:
+    - The target QQ number is correct
+    - Your bot account hasn't been restricted
+    - The recipient hasn't blocked your bot
+  </Accordion>
+</AccordionGroup>
+
+For more help, check the [Troubleshooting Guide](/resources/troubleshooting) or visit the [Community](/resources/community).

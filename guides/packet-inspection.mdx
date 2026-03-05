@@ -1,0 +1,477 @@
+---
+title: Packet Inspection
+description: Monitor and analyze QQ protocol packets using NativePacketHandler
+---
+
+## Overview
+
+NapCat provides low-level packet monitoring through the `NativePacketHandler`, allowing you to intercept and analyze QQ protocol packets. This is useful for debugging, protocol analysis, and implementing advanced features.
+
+<Warning>
+  Packet inspection operates at the protocol level. Incorrect usage may cause instability. This feature is intended for advanced users and developers.
+</Warning>
+
+## NativePacketHandler
+
+From `client.ts:28-227`, the `NativePacketHandler` provides a native hook into the QQ protocol layer.
+
+### Initialization
+
+The packet handler is initialized during framework startup:
+
+```typescript
+import { NativePacketHandler } from 'napcat-core/packet/handler/client';
+import { LogWrapper } from 'napcat-core/helper/log';
+
+const logger = new LogWrapper(logsPath);
+const nativePacketHandler = new NativePacketHandler({ logger });
+
+// Initialize with QQ version and hook mode
+await nativePacketHandler.init(basicInfoWrapper.getFullQQVersion(), napcatConfig.o3HookMode === 1);
+```
+
+### Hook Modes
+
+NapCat supports two hook modes:
+
+- **Standard Mode** (`o3HookMode = 0`): Default hook implementation
+- **O3 Hook Mode** (`o3HookMode = 1`): Alternative hooking method for specific environments
+
+From `napcat.ts:63`:
+
+```typescript
+await nativePacketHandler.init(
+  basicInfoWrapper.getFullQQVersion(),
+  napcatConfig.o3HookMode === 1
+);
+```
+
+## Packet Types
+
+Packets are classified by direction:
+
+```typescript
+export type PacketType = 0 | 1;
+// 0: send (outgoing packets)
+// 1: recv (incoming packets)
+```
+
+### Packet Data Structure
+
+```typescript
+interface PacketData {
+  type: PacketType;    // 0 = send, 1 = recv
+  uin: string;         // User QQ number
+  cmd: string;         // Command name (e.g., 'OidbSvcTrpcTcp.0xcde_2')
+  seq: number;         // Sequence number
+  hex_data: string;    // Packet data in hex format
+}
+```
+
+## Listening to Packets
+
+### Listen to All Packets
+
+```typescript
+const removeListener = nativePacketHandler.onAll((packet) => {
+  console.log('Packet:', packet.cmd);
+  console.log('Direction:', packet.type === 0 ? 'Send' : 'Recv');
+  console.log('UIN:', packet.uin);
+  console.log('Sequence:', packet.seq);
+  console.log('Data:', packet.hex_data);
+});
+
+// Remove listener when done
+removeListener();
+```
+
+### Listen by Direction
+
+From `client.ts:89-103`:
+
+<CodeGroup>
+```typescript Send Packets
+// Listen to all outgoing packets
+const removeListener = nativePacketHandler.onSend((packet) => {
+  console.log('Sending packet:', packet.cmd);
+});
+
+// Or use onType
+const removeListener = nativePacketHandler.onType(0, (packet) => {
+  console.log('Outgoing:', packet.cmd);
+});
+```
+
+```typescript Receive Packets
+// Listen to all incoming packets
+const removeListener = nativePacketHandler.onRecv((packet) => {
+  console.log('Received packet:', packet.cmd);
+});
+
+// Or use onType
+const removeListener = nativePacketHandler.onType(1, (packet) => {
+  console.log('Incoming:', packet.cmd);
+});
+```
+</CodeGroup>
+
+### Listen to Specific Commands
+
+From `client.ts:105-112`:
+
+```typescript
+// Listen to specific command (any direction)
+const removeListener = nativePacketHandler.onCmd('OidbSvcTrpcTcp.0xcde_2', (packet) => {
+  console.log('Database packet:', packet.cmd);
+  console.log('Direction:', packet.type === 0 ? 'Send' : 'Recv');
+  console.log('Data:', packet.hex_data);
+});
+
+// Listen to specific command AND direction (exact match)
+const removeListener = nativePacketHandler.onExact(1, 'MessageSvc.PbSendMsg', (packet) => {
+  console.log('Received message send response');
+});
+```
+
+## One-Time Listeners
+
+All listener methods have one-time variants:
+
+```typescript
+// Listen once to any packet
+nativePacketHandler.onceAll((packet) => {
+  console.log('First packet:', packet.cmd);
+});
+
+// Listen once to specific command
+nativePacketHandler.onceCmd('OidbSvcTrpcTcp.0xcde_2', (packet) => {
+  console.log('First database packet');
+});
+
+// Listen once to send packets
+nativePacketHandler.onceSend((packet) => {
+  console.log('First outgoing packet');
+});
+
+// Listen once to exact match
+nativePacketHandler.onceExact(1, 'MessageSvc.PbSendMsg', (packet) => {
+  console.log('First received message response');
+});
+```
+
+## Parsing Packet Data
+
+Packet data is provided in hexadecimal format. Use protobuf to decode:
+
+### Example: Database Passphrase
+
+From `napcat.ts:67-83`:
+
+```typescript
+import { NapProtoMsg } from 'napcat-protobuf';
+import { OidbSvcTrpcTcpBase, OidbSvcTrpcTcp0XCDE_2RespBody } from 'napcat-core/packet/transformer/proto';
+
+let dbPassphrase: string | undefined;
+
+nativePacketHandler.onCmd('OidbSvcTrpcTcp.0xcde_2', ({ type, hex_data }) => {
+  if (type !== 1) return; // Only process received packets
+  
+  try {
+    // Convert hex to buffer
+    const raw = Buffer.from(hex_data, 'hex');
+    
+    // Decode base protobuf
+    const base = new NapProtoMsg(OidbSvcTrpcTcpBase).decode(raw);
+    
+    if (base.body && base.body.length > 0) {
+      // Decode specific response body
+      const body = new NapProtoMsg(OidbSvcTrpcTcp0XCDE_2RespBody).decode(base.body);
+      
+      if (body.inner?.value) {
+        dbPassphrase = body.inner.value;
+        logger.log('[NapCat] Database support enabled');
+      }
+    }
+  } catch (e) {
+    logger.logError('[NapCat] [0xCDE_2] Parse failed:', e);
+  }
+});
+```
+
+### Example: Message Monitoring
+
+```typescript
+import { NapProtoMsg } from 'napcat-protobuf';
+import { PushMsgBody } from 'napcat-core/packet/transformer/proto';
+
+// Monitor incoming messages
+nativePacketHandler.onCmd('MessageSvc.PushMsg', ({ type, hex_data }) => {
+  if (type !== 1) return; // Only incoming
+  
+  try {
+    const raw = Buffer.from(hex_data, 'hex');
+    const pushMsg = new NapProtoMsg(PushMsgBody).decode(raw);
+    
+    console.log('Message received!');
+    console.log('Content type:', pushMsg.contentHead?.type);
+    // Process message content...
+  } catch (e) {
+    console.error('Failed to parse message:', e);
+  }
+});
+```
+
+## Common Protocol Commands
+
+Here are some commonly monitored commands:
+
+| Command | Description |
+|---------|-------------|
+| `OidbSvcTrpcTcp.0xcde_2` | Database passphrase (used for encrypted database access) |
+| `MessageSvc.PbSendMsg` | Send message |
+| `MessageSvc.PushMsg` | Receive message |
+| `OidbSvcTrpcTcp.0xf88_1` | Group member info |
+| `OidbSvcTrpcTcp.0xf55_1` | Friend list |
+| `OidbSvcTrpcTcp.0xf57_1` | Group list |
+| `trpc.group_pro.msgproxy.sendmsg` | Group message send |
+| `trpc.msg.olpush.OlPushService.MsgPush` | Message push |
+
+## Advanced Packet Filtering
+
+### Filter by Multiple Commands
+
+```typescript
+const commands = ['MessageSvc.PbSendMsg', 'MessageSvc.PushMsg', 'trpc.group_pro.msgproxy.sendmsg'];
+
+commands.forEach(cmd => {
+  nativePacketHandler.onCmd(cmd, (packet) => {
+    console.log(`[${cmd}]`, packet.type === 0 ? 'SEND' : 'RECV');
+  });
+});
+```
+
+### Conditional Packet Processing
+
+```typescript
+nativePacketHandler.onAll((packet) => {
+  // Only process packets for specific user
+  if (packet.uin !== '123456789') return;
+  
+  // Only process specific commands
+  if (!packet.cmd.startsWith('OidbSvcTrpcTcp')) return;
+  
+  // Process packet
+  console.log('Relevant packet:', packet.cmd);
+});
+```
+
+### Packet Statistics
+
+```typescript
+const stats = {
+  sent: 0,
+  received: 0,
+  commands: new Map<string, number>(),
+};
+
+nativePacketHandler.onAll((packet) => {
+  // Track direction
+  if (packet.type === 0) {
+    stats.sent++;
+  } else {
+    stats.received++;
+  }
+  
+  // Track command frequency
+  const count = stats.commands.get(packet.cmd) || 0;
+  stats.commands.set(packet.cmd, count + 1);
+});
+
+// Print stats every 10 seconds
+setInterval(() => {
+  console.log('Packet Statistics:');
+  console.log('  Sent:', stats.sent);
+  console.log('  Received:', stats.received);
+  console.log('  Top commands:');
+  
+  const sorted = Array.from(stats.commands.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  
+  sorted.forEach(([cmd, count]) => {
+    console.log(`    ${cmd}: ${count}`);
+  });
+}, 10000);
+```
+
+## Removing Listeners
+
+From `client.ts:149-161`:
+
+```typescript
+// Method 1: Use returned function
+const removeListener = nativePacketHandler.onCmd('some.command', callback);
+removeListener();  // Remove this specific listener
+
+// Method 2: Remove by key and callback
+nativePacketHandler.off('cmd:some.command', callback);
+
+// Method 3: Remove all listeners for a key
+nativePacketHandler.offAll('cmd:some.command');
+
+// Method 4: Remove all listeners
+nativePacketHandler.removeAllListeners();
+```
+
+## Packet Capture Example
+
+Complete example for debugging:
+
+```typescript
+import fs from 'fs';
+import path from 'path';
+
+class PacketCapture {
+  private logPath: string;
+  private logStream: fs.WriteStream;
+
+  constructor(logDir: string) {
+    this.logPath = path.join(logDir, `packets-${Date.now()}.log`);
+    this.logStream = fs.createWriteStream(this.logPath, { flags: 'a' });
+  }
+
+  start(handler: NativePacketHandler) {
+    handler.onAll((packet) => {
+      const entry = {
+        timestamp: new Date().toISOString(),
+        direction: packet.type === 0 ? 'SEND' : 'RECV',
+        uin: packet.uin,
+        cmd: packet.cmd,
+        seq: packet.seq,
+        dataLength: packet.hex_data.length / 2, // bytes
+      };
+
+      this.logStream.write(JSON.stringify(entry) + '\n');
+    });
+  }
+
+  stop() {
+    this.logStream.end();
+  }
+}
+
+// Usage
+const capture = new PacketCapture('./logs');
+capture.start(nativePacketHandler);
+
+// Stop after 60 seconds
+setTimeout(() => {
+  capture.stop();
+  console.log('Packet capture stopped');
+}, 60000);
+```
+
+## Performance Considerations
+
+<Warning>
+  Packet monitoring can generate high volumes of data. Consider these best practices:
+</Warning>
+
+1. **Filter Early**: Use specific `onCmd` or `onExact` listeners instead of `onAll`
+2. **Limit Logging**: Only log essential information
+3. **Use Sampling**: For high-frequency packets, sample instead of capturing all
+4. **Clean Up**: Remove listeners when no longer needed
+5. **Avoid Heavy Processing**: Keep packet handlers lightweight
+
+### Sampling Example
+
+```typescript
+let sampleCounter = 0;
+const SAMPLE_RATE = 10; // Log every 10th packet
+
+nativePacketHandler.onCmd('MessageSvc.PushMsg', (packet) => {
+  sampleCounter++;
+  if (sampleCounter % SAMPLE_RATE === 0) {
+    console.log('Sample packet:', packet.cmd);
+  }
+});
+```
+
+## Debugging Protocol Issues
+
+### Capture Specific Operation
+
+```typescript
+async function captureGroupMessage(handler: NativePacketHandler, groupId: string) {
+  const packets: PacketData[] = [];
+  
+  // Capture all relevant packets
+  const removeListener = handler.onAll((packet) => {
+    if (packet.cmd.includes('group') || packet.cmd.includes('msg')) {
+      packets.push(packet);
+    }
+  });
+  
+  // Send test message
+  await core.apis.MsgApi.sendMsg(
+    { chatType: ChatType.KCHATTYPEGROUP, peerUid: groupId, guildId: '' },
+    [/* message elements */],
+    10000
+  );
+  
+  // Wait a bit for responses
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  // Stop capturing
+  removeListener();
+  
+  // Analyze captured packets
+  console.log('Captured packets:', packets.length);
+  packets.forEach((p, i) => {
+    console.log(`${i + 1}. [${p.type === 0 ? 'SEND' : 'RECV'}] ${p.cmd}`);
+  });
+  
+  return packets;
+}
+```
+
+## Integration with Plugins
+
+Access packet handler from plugin context:
+
+```typescript
+export const plugin_init: PluginModule['plugin_init'] = async (ctx) => {
+  const packetHandler = ctx.core.context.packetHandler;
+  
+  if (packetHandler) {
+    packetHandler.onCmd('MessageSvc.PushMsg', (packet) => {
+      ctx.logger.info('Message packet detected:', packet.cmd);
+    });
+  }
+};
+```
+
+<Note>
+  The packet handler is available through `ctx.core.context.packetHandler` in plugin contexts.
+</Note>
+
+## Best Practices
+
+1. **Always check packet type** before processing (send vs receive)
+2. **Handle parsing errors** gracefully with try-catch blocks
+3. **Remove listeners** when they're no longer needed
+4. **Use specific listeners** (onCmd, onExact) over broad ones (onAll)
+5. **Log selectively** to avoid performance impact
+6. **Document packet formats** when you discover new ones
+7. **Test in development** before deploying to production
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Plugin Development" icon="puzzle-piece" href="/guides/plugin-development">
+    Build custom plugins
+  </Card>
+  <Card title="Deployment" icon="server" href="/guides/deployment">
+    Deploy to production
+  </Card>
+</CardGroup>

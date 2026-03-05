@@ -1,0 +1,636 @@
+---
+title: Message Handling
+description: Send and receive messages with support for text, images, video, voice, and other rich media
+---
+
+## Overview
+
+NapCat provides comprehensive message handling capabilities through the `NTQQMsgApi` and `OneBotMsgApi` layers. This guide covers sending messages, receiving messages, and working with different message segment types.
+
+## Message Architecture
+
+NapCat uses a two-layer message system:
+
+- **Raw Message Layer** (`NTQQMsgApi`): Direct NT QQ protocol messages from `msg.ts:1-314`
+- **OneBot Layer** (`OneBotMsgApi`): OneBot 11 standard compatibility from `napcat-onebot/api/msg.ts`
+
+## Sending Messages
+
+### Basic Send Message
+
+From `msg.ts:232-264`:
+
+```typescript
+const peer: Peer = {
+  chatType: ChatType.KCHATTYPEGROUP,  // or KCHATTYPEC2C for private
+  peerUid: '123456789',  // Group ID or user UID
+  guildId: '',
+};
+
+const msgElements: SendMessageElement[] = [
+  {
+    elementType: ElementType.TEXT,
+    elementId: '',
+    textElement: {
+      content: 'Hello, World!',
+      atType: NTMsgAtType.ATTYPEUNKNOWN,
+      atUid: '',
+      atTinyId: '',
+      atNtUid: '',
+    },
+  },
+];
+
+const returnMsg = await core.apis.MsgApi.sendMsg(peer, msgElements, 10000);
+console.log('Message sent:', returnMsg.msgId);
+```
+
+### Generate Unique Message ID
+
+Before sending, generate a unique message ID:
+
+```typescript
+const msgId = await core.apis.MsgApi.generateMsgUniqueId(peer.chatType);
+peer.guildId = msgId;  // Used for message tracking
+```
+
+### Send with Timeout
+
+```typescript
+const timeout = 10000 + (totalSize / 1024 / 256 * 1000);
+const returnMsg = await core.apis.MsgApi.sendMsg(peer, msgElements, timeout);
+```
+
+## Message Segments
+
+NapCat supports various message segment types (CQ codes in OneBot format).
+
+### Text Messages
+
+<CodeGroup>
+```typescript TypeScript
+// Raw format
+const textElement: SendMessageElement = {
+  elementType: ElementType.TEXT,
+  elementId: '',
+  textElement: {
+    content: 'Hello, World!',
+    atType: NTMsgAtType.ATTYPEUNKNOWN,
+    atUid: '',
+    atTinyId: '',
+    atNtUid: '',
+  },
+};
+```
+
+```json OneBot
+{
+  "type": "text",
+  "data": {
+    "text": "Hello, World!"
+  }
+}
+```
+
+```text CQ Code
+[CQ:text,text=Hello, World!]
+```
+</CodeGroup>
+
+### At Mentions
+
+```typescript
+// At specific user
+const atElement: SendMessageElement = {
+  elementType: ElementType.TEXT,
+  elementId: '',
+  textElement: {
+    content: '@User',
+    atType: NTMsgAtType.ATTYPEONE,
+    atUid: '123456789',
+    atNtUid: 'user_uid_here',
+  },
+};
+
+// At all members
+const atAllElement: SendMessageElement = {
+  elementType: ElementType.TEXT,
+  elementId: '',
+  textElement: {
+    content: '@全体成员',
+    atType: NTMsgAtType.ATTYPEALL,
+    atUid: 'all',
+    atNtUid: 'all',
+  },
+};
+```
+
+OneBot format:
+
+```json
+{
+  "type": "at",
+  "data": {
+    "qq": "123456789"  // or "all" for @everyone
+  }
+}
+```
+
+### Images
+
+<Note>
+  Images are processed through `createValidSendPicElement` which handles local files, URLs, and base64 data.
+</Note>
+
+```typescript
+// Send image
+const imageElement = await obContext.apis.FileApi.createValidSendPicElement(
+  context,
+  '/path/to/image.jpg',
+  'Image description',
+  0  // sub_type: 0=normal, 1=表情包
+);
+```
+
+OneBot format:
+
+```json
+{
+  "type": "image",
+  "data": {
+    "file": "file:///path/to/image.jpg",
+    "summary": "Image description",
+    "sub_type": 0
+  }
+}
+```
+
+### Video
+
+```typescript
+const videoElement = await obContext.apis.FileApi.createValidSendVideoElement(
+  context,
+  '/path/to/video.mp4',
+  'video.mp4',
+  '/path/to/thumb.jpg'  // Optional thumbnail
+);
+```
+
+OneBot format:
+
+```json
+{
+  "type": "video",
+  "data": {
+    "file": "file:///path/to/video.mp4",
+    "thumb": "/path/to/thumb.jpg"
+  }
+}
+```
+
+### Voice (PTT)
+
+```typescript
+const voiceElement = await obContext.apis.FileApi.createValidSendPttElement(
+  context,
+  '/path/to/audio.silk'
+);
+```
+
+OneBot format:
+
+```json
+{
+  "type": "voice",
+  "data": {
+    "file": "file:///path/to/audio.silk"
+  }
+}
+```
+
+### Reply Messages
+
+From `napcat-onebot/api/msg.ts:642-682`:
+
+```typescript
+const replyElement: SendMessageElement = {
+  elementType: ElementType.REPLY,
+  elementId: '',
+  replyElement: {
+    replayMsgSeq: replyMsg.msgSeq,
+    replayMsgId: replyMsg.msgId,
+    senderUin: replyMsg.senderUin,
+    senderUinStr: replyMsg.senderUin,
+    replyMsgClientSeq: replyMsg.clientSeq,
+    _replyMsgPeer: replyMsgPeer,
+  },
+};
+```
+
+OneBot format:
+
+```json
+{
+  "type": "reply",
+  "data": {
+    "id": "message_id_here"
+  }
+}
+```
+
+### Face Emojis
+
+```typescript
+const faceElement: SendMessageElement = {
+  elementType: ElementType.FACE,
+  elementId: '',
+  faceElement: {
+    faceIndex: 1,  // Face ID (0-255)
+    faceType: 1,
+    faceText: '[微笑]',
+    stickerId: '',
+    stickerType: 0,
+    packId: '',
+    sourceType: 1,
+  },
+};
+```
+
+OneBot format:
+
+```json
+{
+  "type": "face",
+  "data": {
+    "id": "1"
+  }
+}
+```
+
+### Market Face (Stickers)
+
+```typescript
+const marketFaceElement: SendMessageElement = {
+  elementType: ElementType.MFACE,
+  elementId: '',
+  marketFaceElement: {
+    emojiPackageId: '1',
+    emojiId: 'emoji_id',
+    key: 'sticker_key',
+    faceName: '[贴图]',
+  },
+};
+```
+
+### Files
+
+```typescript
+const fileElement = await obContext.apis.FileApi.createValidSendFileElement(
+  context,
+  '/path/to/file.pdf',
+  'document.pdf'
+);
+```
+
+OneBot format:
+
+```json
+{
+  "type": "file",
+  "data": {
+    "file": "file:///path/to/file.pdf",
+    "name": "document.pdf"
+  }
+}
+```
+
+### JSON Cards
+
+```typescript
+const jsonElement: SendMessageElement = {
+  elementType: ElementType.ARK,
+  elementId: '',
+  arkElement: {
+    bytesData: JSON.stringify({
+      app: 'com.tencent.structmsg',
+      view: 'news',
+      // ... JSON card structure
+    }),
+    linkInfo: null,
+    subElementType: null,
+  },
+};
+```
+
+### Markdown
+
+```typescript
+const markdownElement: SendMessageElement = {
+  elementType: ElementType.MARKDOWN,
+  elementId: '',
+  markdownElement: {
+    content: '# Title\n\nMarkdown content here',
+  },
+};
+```
+
+## Receiving Messages
+
+### Parse Received Messages
+
+From `napcat-onebot/api/msg.ts:1042-1098`:
+
+```typescript
+// Parse raw message to OB11 format
+const ob11Message = await obContext.apis.MsgApi.parseMessage(
+  rawMessage,
+  'array',     // or 'string' for CQ code format
+  true,        // parseMultMsg: parse forward messages
+  false,       // disableGetUrl: disable URL fetching
+  false        // quick_reply: quick reply mode
+);
+
+console.log('Message segments:', ob11Message.message);
+console.log('Raw message:', ob11Message.raw_message);
+```
+
+### Message Event Structure
+
+```typescript
+interface OB11Message {
+  self_id: number;          // Bot's QQ number
+  user_id: number;          // Sender's QQ number
+  time: number;             // Unix timestamp
+  message_id: number;       // Unique message ID
+  message_seq: number;      // Message sequence
+  real_id: number;          // Real message ID
+  real_seq: string;         // Real sequence
+  message_type: 'group' | 'private';
+  sender: {
+    user_id: number;
+    nickname: string;
+    card?: string;          // Group card name
+    role?: 'owner' | 'admin' | 'member';
+  };
+  raw_message: string;      // CQ code format
+  message: OB11MessageData[]; // Segment array
+  group_id?: number;        // For group messages
+  message_format: 'array' | 'string';
+  post_type: 'message' | 'message_sent';
+}
+```
+
+## Forward Messages
+
+### Forward Single Message
+
+From `msg.ts:270-272`:
+
+```typescript
+await core.apis.MsgApi.forwardMsg(srcPeer, destPeer, [msgId]);
+```
+
+### Multi-Forward Messages
+
+From `msg.ts:274-308`:
+
+```typescript
+const msgInfos = msgIds.map(id => ({
+  msgId: id,
+  senderShowName: core.selfInfo.nick,
+}));
+
+const returnMsg = await core.apis.MsgApi.multiForwardMsg(
+  srcPeer,
+  destPeer,
+  msgIds
+);
+
+console.log('Forward message:', returnMsg.msgId);
+```
+
+## Message History
+
+### Get Message History
+
+From `msg.ts:192-195`:
+
+```typescript
+const history = await core.apis.MsgApi.getMsgHistory(
+  peer,
+  msgId,        // Start from this message
+  20,           // Count
+  false         // isReverseOrder
+);
+
+console.log('Messages:', history.msgList);
+```
+
+### Get Specific Message
+
+```typescript
+// By message ID
+const msg = await core.apis.MsgApi.getMsgsByMsgId(peer, [msgId]);
+
+// By sequence number
+const msg = await core.apis.MsgApi.getSingleMsg(peer, msgSeq);
+```
+
+## Message Operations
+
+### Recall Message
+
+From `msg.ts:197-207`:
+
+```typescript
+await core.apis.MsgApi.recallMsg(peer, msgId);
+```
+
+### Mark as Read
+
+```typescript
+// Mark specific chat as read
+await core.apis.MsgApi.setMsgRead(peer);
+
+// Mark all messages as read
+await core.apis.MsgApi.markAllMsgAsRead();
+```
+
+### Emoji Reactions
+
+```typescript
+// Add emoji like
+await core.apis.MsgApi.setEmojiLike(
+  peer,
+  msgSeq,
+  '128077',  // Emoji ID (thumbs up)
+  true       // true to add, false to remove
+);
+
+// Get emoji likes list
+const likes = await core.apis.MsgApi.getMsgEmojiLikesList(
+  peer,
+  msgSeq,
+  '128077',
+  '1',       // Emoji type
+  '',        // Cookie for pagination
+  20         // Count
+);
+```
+
+## CQ Code Encoding/Decoding
+
+From `cqcode.ts:34-86`:
+
+### Decode CQ Code
+
+```typescript
+import { decodeCQCode } from '@/napcat-onebot/helper/cqcode';
+
+const segments = decodeCQCode('[CQ:at,qq=123456] Hello [CQ:face,id=1]');
+// [
+//   { type: 'at', data: { qq: '123456' } },
+//   { type: 'text', data: { text: ' Hello ' } },
+//   { type: 'face', data: { id: '1' } }
+// ]
+```
+
+### Encode to CQ Code
+
+```typescript
+import { encodeCQCode } from '@/napcat-onebot/helper/cqcode';
+
+const cqCode = encodeCQCode({
+  type: 'image',
+  data: {
+    file: 'file:///path/to/image.jpg',
+    summary: 'An image'
+  }
+});
+// [CQ:image,file=file:///path/to/image.jpg,summary=An image]
+```
+
+## Complete Example
+
+<CodeGroup>
+```typescript Send Text with Image
+import { ChatType, ElementType, Peer, SendMessageElement } from 'napcat-core';
+
+const peer: Peer = {
+  chatType: ChatType.KCHATTYPEGROUP,
+  peerUid: '123456789',
+  guildId: '',
+};
+
+const msgElements: SendMessageElement[] = [
+  // Text
+  {
+    elementType: ElementType.TEXT,
+    elementId: '',
+    textElement: {
+      content: 'Check out this image:',
+      atType: 0,
+      atUid: '',
+      atTinyId: '',
+      atNtUid: '',
+    },
+  },
+  // Image
+  await obContext.apis.FileApi.createValidSendPicElement(
+    { peer, deleteAfterSentFiles: [] },
+    '/path/to/image.jpg',
+    'Cool image',
+    0
+  ),
+];
+
+const result = await core.apis.MsgApi.sendMsg(peer, msgElements, 10000);
+console.log('Message sent:', result.msgId);
+```
+
+```typescript Handle Incoming Messages
+// In your message listener
+core.apis.MsgApi.on('message', async (msg) => {
+  // Parse message
+  const ob11Msg = await obContext.apis.MsgApi.parseMessage(
+    msg,
+    'array',
+    true,
+    false,
+    false
+  );
+
+  console.log('Received message from:', ob11Msg.sender.nickname);
+  console.log('Content:', ob11Msg.raw_message);
+
+  // Process each segment
+  for (const segment of ob11Msg.message) {
+    if (segment.type === 'text') {
+      console.log('Text:', segment.data.text);
+    } else if (segment.type === 'image') {
+      console.log('Image URL:', segment.data.url);
+    } else if (segment.type === 'at') {
+      console.log('At user:', segment.data.qq);
+    }
+  }
+
+  // Reply to message
+  if (ob11Msg.raw_message.includes('hello')) {
+    const replyElements = [
+      {
+        elementType: ElementType.REPLY,
+        elementId: '',
+        replyElement: {
+          replayMsgSeq: msg.msgSeq,
+          replayMsgId: msg.msgId,
+          senderUin: msg.senderUin,
+          senderUinStr: msg.senderUin,
+          replyMsgClientSeq: msg.clientSeq,
+        },
+      },
+      {
+        elementType: ElementType.TEXT,
+        elementId: '',
+        textElement: {
+          content: 'Hello! How can I help you?',
+          atType: 0,
+          atUid: '',
+          atTinyId: '',
+          atNtUid: '',
+        },
+      },
+    ];
+
+    await core.apis.MsgApi.sendMsg(
+      { chatType: msg.chatType, peerUid: msg.peerUid, guildId: '' },
+      replyElements,
+      10000
+    );
+  }
+});
+```
+</CodeGroup>
+
+<Warning>
+  Large media files (images, videos, voice) may require longer timeouts. Calculate timeout based on file size: `10000 + (fileSize / 1024 / 256 * 1000)` milliseconds.
+</Warning>
+
+## Best Practices
+
+1. **Always set appropriate timeouts** for send operations based on message content
+2. **Handle file paths correctly** - support URLs, local paths, and base64 data
+3. **Clean up temporary files** after sending to save disk space
+4. **Use message IDs for tracking** rather than sequence numbers when possible
+5. **Parse messages carefully** - handle all segment types your bot needs
+6. **Implement error handling** for network failures and invalid messages
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Plugin Development" icon="puzzle-piece" href="/guides/plugin-development">
+    Build plugins to extend functionality
+  </Card>
+  <Card title="Packet Inspection" icon="magnifying-glass" href="/guides/packet-inspection">
+    Monitor and analyze protocol packets
+  </Card>
+</CardGroup>

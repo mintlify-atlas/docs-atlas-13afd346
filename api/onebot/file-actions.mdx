@@ -1,0 +1,412 @@
+---
+title: File Actions
+description: OneBot 11 file upload and download actions
+---
+
+## upload_group_file
+
+Upload a file to a group's file system.
+
+### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+<ParamField path="file" type="string" required>
+  File path, URL, or Base64-encoded data
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  File name to display
+</ParamField>
+
+<ParamField path="folder" type="string">
+  Parent folder ID (uploads to root if not specified)
+</ParamField>
+
+<ParamField path="folder_id" type="string">
+  Parent folder ID (alternative parameter for compatibility)
+</ParamField>
+
+<ParamField path="upload_file" type="boolean" default="true">
+  Whether to execute the upload
+</ParamField>
+
+### Response
+
+<ResponseField name="file_id" type="string | null">
+  Uploaded file's UUID (null if upload failed)
+</ResponseField>
+
+### Example
+
+```json
+// Request - Upload from local path
+{
+  "group_id": "123456",
+  "file": "/path/to/file.pdf",
+  "name": "Document.pdf",
+  "folder": "/folder_id_123"
+}
+
+// Request - Upload from URL
+{
+  "group_id": "123456",
+  "file": "https://example.com/file.zip",
+  "name": "Archive.zip"
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": {
+    "file_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+  }
+}
+```
+
+## upload_private_file
+
+Upload a file to a private chat.
+
+### Request
+
+<ParamField path="user_id" type="string" required>
+  User QQ number
+</ParamField>
+
+<ParamField path="file" type="string" required>
+  File path, URL, or Base64-encoded data
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  File name to display
+</ParamField>
+
+### Response
+
+<ResponseField name="file_id" type="string | null">
+  Uploaded file's UUID
+</ResponseField>
+
+### Example
+
+```json
+// Request
+{
+  "user_id": "987654321",
+  "file": "/path/to/image.png",
+  "name": "Photo.png"
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": {
+    "file_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+  }
+}
+```
+
+## get_group_file_url
+
+Get download URL for a group file.
+
+### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+<ParamField path="file_id" type="string" required>
+  File UUID from upload or file list
+</ParamField>
+
+<ParamField path="busid" type="number" required>
+  Business ID (usually `102` for group files)
+</ParamField>
+
+### Response
+
+<ResponseField name="url" type="string">
+  Download URL for the file
+</ResponseField>
+
+### Example
+
+```json
+// Request
+{
+  "group_id": "123456",
+  "file_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "busid": 102
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": {
+    "url": "https://download.example.com/file?..."
+  }
+}
+```
+
+## get_private_file_url
+
+Get download URL for a private file.
+
+### Request
+
+<ParamField path="user_id" type="string" required>
+  User QQ number
+</ParamField>
+
+<ParamField path="file_id" type="string" required>
+  File UUID
+</ParamField>
+
+### Response
+
+<ResponseField name="url" type="string">
+  Download URL for the file
+</ResponseField>
+
+### Example
+
+```json
+// Request
+{
+  "user_id": "987654321",
+  "file_id": "b2c3d4e5-f6a7-8901-bcde-f12345678901"
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": {
+    "url": "https://download.example.com/private/file?..."
+  }
+}
+```
+
+## get_file
+
+Get file information and download URL.
+
+### Request
+
+<ParamField path="file_id" type="string" required>
+  File ID from message or file list
+</ParamField>
+
+### Response
+
+<ResponseField name="file" type="string">
+  Local file path or download URL
+</ResponseField>
+
+<ResponseField name="file_name" type="string">
+  File name
+</ResponseField>
+
+<ResponseField name="file_size" type="number">
+  File size in bytes
+</ResponseField>
+
+<ResponseField name="url" type="string">
+  Download URL
+</ResponseField>
+
+### Example
+
+```json
+// Request
+{
+  "file_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": {
+    "file": "/tmp/napcat/file.pdf",
+    "file_name": "document.pdf",
+    "file_size": 1048576,
+    "url": "https://download.example.com/file?..."
+  }
+}
+```
+
+## Group File System Management
+
+### get_group_root_files
+
+Get files and folders in group's root directory.
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+### get_group_files_by_folder
+
+Get files and folders in a specific folder.
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+<ParamField path="folder_id" type="string" required>
+  Folder ID
+</ParamField>
+
+### get_group_file_system_info
+
+Get group file system information (used space, file count, etc.).
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+### create_group_file_folder
+
+Create a new folder in group file system.
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  Folder name
+</ParamField>
+
+<ParamField path="parent_id" type="string">
+  Parent folder ID (root if not specified)
+</ParamField>
+
+### delete_group_file
+
+Delete a file from group file system.
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+<ParamField path="file_id" type="string" required>
+  File UUID to delete
+</ParamField>
+
+<ParamField path="busid" type="number" required>
+  Business ID (usually `102`)
+</ParamField>
+
+### delete_group_folder
+
+Delete a folder from group file system.
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+<ParamField path="folder_id" type="string" required>
+  Folder ID to delete
+</ParamField>
+
+## Media File Actions
+
+### get_image
+
+Get image file information.
+
+<ParamField path="file" type="string" required>
+  Image file name from message
+</ParamField>
+
+### get_record
+
+Get voice/audio record file information.
+
+<ParamField path="file" type="string" required>
+  Record file name from message
+</ParamField>
+
+<ParamField path="out_format" type="string">
+  Output format (e.g., `mp3`, `wav`)
+</ParamField>
+
+## File Transfer Examples
+
+### Upload and Send File
+
+```json
+// 1. Upload file to group
+{
+  "action": "upload_group_file",
+  "params": {
+    "group_id": "123456",
+    "file": "https://example.com/document.pdf",
+    "name": "Important Document.pdf"
+  }
+}
+
+// 2. Send file as message (alternative)
+{
+  "action": "send_group_msg",
+  "params": {
+    "group_id": "123456",
+    "message": [
+      {
+        "type": "file",
+        "data": {
+          "file": "https://example.com/document.pdf",
+          "name": "Important Document.pdf"
+        }
+      }
+    ]
+  }
+}
+```
+
+### Download File from Message
+
+```json
+// 1. Get file_id from received message event
+// message contains: {"type": "file", "data": {"file_id": "..."}}
+
+// 2. Get download URL
+{
+  "action": "get_file",
+  "params": {
+    "file_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+  }
+}
+
+// 3. Download from returned URL
+```
+
+## NapCat Extended File Actions
+
+### move_group_file
+
+Move a file to a different folder in group file system.
+
+### rename_group_file
+
+Rename a file in group file system.
+
+### trans_group_file
+
+Transfer group file to another location.
+
+<Note>
+  File paths can be specified as:
+  - Local absolute path: `/path/to/file`
+  - File URI: `file:///path/to/file`
+  - HTTP/HTTPS URL: `https://example.com/file`
+  - Base64 data: `base64://...`
+</Note>

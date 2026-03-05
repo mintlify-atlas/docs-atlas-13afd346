@@ -1,0 +1,438 @@
+---
+title: Message API
+description: NTQQMsgApi methods for sending and managing QQ messages
+---
+
+## Overview
+
+The `NTQQMsgApi` class provides methods for sending messages, retrieving message history, recalling messages, and other message-related operations.
+
+## Sending Messages
+
+### sendMsg
+
+Send a message to a peer (user or group).
+
+```typescript
+async sendMsg(
+  peer: Peer,
+  msgElements: SendMessageElement[],
+  timeout = 10000
+): Promise<RawMessage | undefined>
+```
+
+<ParamField path="peer" type="Peer" required>
+  Target peer object with chatType and peerUid
+</ParamField>
+
+<ParamField path="msgElements" type="SendMessageElement[]" required>
+  Array of message elements (text, image, etc.)
+</ParamField>
+
+<ParamField path="timeout" type="number" default="10000">
+  Timeout in milliseconds
+</ParamField>
+
+<ResponseField name="return" type="RawMessage | undefined">
+  The sent message object, or undefined if failed
+</ResponseField>
+
+**Example:**
+
+```typescript
+const peer = {
+  chatType: ChatType.KCHATTYPEGROUP,
+  peerUid: '123456789',
+};
+
+const elements = [
+  { textElement: { content: 'Hello, World!' } }
+];
+
+const msg = await core.apis.MsgApi.sendMsg(peer, elements);
+console.log('Message sent:', msg.msgId);
+```
+
+### forwardMsg
+
+Forward messages from one peer to another.
+
+```typescript
+async forwardMsg(
+  srcPeer: Peer,
+  destPeer: Peer,
+  msgIds: string[]
+)
+```
+
+<ParamField path="srcPeer" type="Peer" required>
+  Source peer where messages are from
+</ParamField>
+
+<ParamField path="destPeer" type="Peer" required>
+  Destination peer to forward to
+</ParamField>
+
+<ParamField path="msgIds" type="string[]" required>
+  Array of message IDs to forward
+</ParamField>
+
+### multiForwardMsg
+
+Forward multiple messages as a combined forward message.
+
+```typescript
+async multiForwardMsg(
+  srcPeer: Peer,
+  destPeer: Peer,
+  msgIds: string[]
+): Promise<RawMessage>
+```
+
+<ParamField path="srcPeer" type="Peer" required>
+  Source peer where messages are from
+</ParamField>
+
+<ParamField path="destPeer" type="Peer" required>
+  Destination peer to forward to
+</ParamField>
+
+<ParamField path="msgIds" type="string[]" required>
+  Array of message IDs to combine and forward
+</ParamField>
+
+<ResponseField name="return" type="RawMessage">
+  The combined forward message
+</ResponseField>
+
+## Message History
+
+### getMsgHistory
+
+Retrieve message history from a peer.
+
+```typescript
+async getMsgHistory(
+  peer: Peer,
+  msgId: string,
+  count: number,
+  isReverseOrder: boolean = false
+)
+```
+
+<ParamField path="peer" type="Peer" required>
+  Peer to get message history from
+</ParamField>
+
+<ParamField path="msgId" type="string" required>
+  Starting message ID
+</ParamField>
+
+<ParamField path="count" type="number" required>
+  Number of messages to retrieve
+</ParamField>
+
+<ParamField path="isReverseOrder" type="boolean" default="false">
+  Whether to retrieve in reverse order
+</ParamField>
+
+**Example:**
+
+```typescript
+const history = await core.apis.MsgApi.getMsgHistory(
+  peer,
+  '0', // Start from latest
+  20,  // Get 20 messages
+  false
+);
+```
+
+### getMsgsByMsgId
+
+Get specific messages by their IDs.
+
+```typescript
+async getMsgsByMsgId(
+  peer: Peer | undefined,
+  msgIds: string[] | undefined
+)
+```
+
+<ParamField path="peer" type="Peer" required>
+  Peer where messages are located
+</ParamField>
+
+<ParamField path="msgIds" type="string[]" required>
+  Array of message IDs to retrieve
+</ParamField>
+
+### getSingleMsg
+
+Get a single message by sequence number.
+
+```typescript
+async getSingleMsg(peer: Peer, seq: string)
+```
+
+<ParamField path="peer" type="Peer" required>
+  Peer where message is located
+</ParamField>
+
+<ParamField path="seq" type="string" required>
+  Message sequence number
+</ParamField>
+
+### getMultiMsg
+
+Get multi-message (combined forward) content.
+
+```typescript
+async getMultiMsg(
+  peer: Peer,
+  rootMsgId: string,
+  parentMsgId: string
+): Promise<GeneralCallResult & { msgList: RawMessage[] } | undefined>
+```
+
+<ParamField path="peer" type="Peer" required>
+  Peer where multi-message is located
+</ParamField>
+
+<ParamField path="rootMsgId" type="string" required>
+  Root message ID
+</ParamField>
+
+<ParamField path="parentMsgId" type="string" required>
+  Parent message ID
+</ParamField>
+
+<ResponseField name="return" type="{ msgList: RawMessage[] }">
+  Object containing the list of messages
+</ResponseField>
+
+## Message Actions
+
+### recallMsg
+
+Recall (delete) a sent message.
+
+```typescript
+async recallMsg(peer: Peer, msgId: string)
+```
+
+<ParamField path="peer" type="Peer" required>
+  Peer where message is located
+</ParamField>
+
+<ParamField path="msgId" type="string" required>
+  Message ID to recall
+</ParamField>
+
+**Example:**
+
+```typescript
+await core.apis.MsgApi.recallMsg(peer, msg.msgId);
+```
+
+### setMsgRead
+
+Mark messages as read for a peer.
+
+```typescript
+async setMsgRead(peer: Peer)
+```
+
+<ParamField path="peer" type="Peer" required>
+  Peer to mark messages as read
+</ParamField>
+
+### markAllMsgAsRead
+
+Mark all messages as read across all chats.
+
+```typescript
+async markAllMsgAsRead()
+```
+
+## Emoji Reactions
+
+### setEmojiLike
+
+Add or remove an emoji reaction to a message.
+
+```typescript
+async setEmojiLike(
+  peer: Peer,
+  msgSeq: string,
+  emojiId: string,
+  set: boolean = true
+)
+```
+
+<ParamField path="peer" type="Peer" required>
+  Peer where message is located
+</ParamField>
+
+<ParamField path="msgSeq" type="string" required>
+  Message sequence number
+</ParamField>
+
+<ParamField path="emojiId" type="string" required>
+  Emoji ID to react with
+</ParamField>
+
+<ParamField path="set" type="boolean" default="true">
+  true to add reaction, false to remove
+</ParamField>
+
+### getMsgEmojiLikesList
+
+Get list of users who reacted with a specific emoji.
+
+```typescript
+async getMsgEmojiLikesList(
+  peer: Peer,
+  msgSeq: string,
+  emojiId: string,
+  emojiType: string,
+  cookie: string = '',
+  count: number = 20
+)
+```
+
+<ParamField path="peer" type="Peer" required>
+  Peer where message is located
+</ParamField>
+
+<ParamField path="msgSeq" type="string" required>
+  Message sequence number
+</ParamField>
+
+<ParamField path="emojiId" type="string" required>
+  Emoji ID
+</ParamField>
+
+<ParamField path="emojiType" type="string" required>
+  Emoji type (usually '1' or '2')
+</ParamField>
+
+<ParamField path="cookie" type="string" default="''">
+  Pagination cookie
+</ParamField>
+
+<ParamField path="count" type="number" default="20">
+  Number of results to return
+</ParamField>
+
+## Group Files
+
+### getGroupFileList
+
+Get list of files in a group.
+
+```typescript
+async getGroupFileList(
+  GroupCode: string,
+  params: GetFileListParam
+): Promise<GroupFileInfoUpdateItem[]>
+```
+
+<ParamField path="GroupCode" type="string" required>
+  Group code
+</ParamField>
+
+<ParamField path="params" type="GetFileListParam" required>
+  Parameters including startIndex and fileCount
+</ParamField>
+
+<ResponseField name="return" type="GroupFileInfoUpdateItem[]">
+  Array of group file information
+</ResponseField>
+
+## Temporary Chats
+
+### PrepareTempChat
+
+Prepare a temporary chat session with a group member.
+
+```typescript
+async PrepareTempChat(
+  toUserUid: string,
+  GroupCode: string,
+  nickname: string
+)
+```
+
+<ParamField path="toUserUid" type="string" required>
+  Target user UID
+</ParamField>
+
+<ParamField path="GroupCode" type="string" required>
+  Group code where user is a member
+</ParamField>
+
+<ParamField path="nickname" type="string" required>
+  User's nickname
+</ParamField>
+
+### getTempChatInfo
+
+Get information about a temporary chat.
+
+```typescript
+async getTempChatInfo(chatType: ChatType, peerUid: string)
+```
+
+<ParamField path="chatType" type="ChatType" required>
+  Type of temporary chat
+</ParamField>
+
+<ParamField path="peerUid" type="string" required>
+  Peer UID
+</ParamField>
+
+## Utility Methods
+
+### generateMsgUniqueId
+
+Generate a unique message ID.
+
+```typescript
+async generateMsgUniqueId(chatType: number): Promise<string>
+```
+
+<ParamField path="chatType" type="number" required>
+  Chat type number
+</ParamField>
+
+<ResponseField name="return" type="string">
+  Generated unique message ID
+</ResponseField>
+
+### fetchFavEmojiList
+
+Fetch favorite emoji list.
+
+```typescript
+async fetchFavEmojiList(num: number)
+```
+
+<ParamField path="num" type="number" required>
+  Number of emojis to fetch
+</ParamField>
+
+### sendShowInputStatusReq
+
+Send input status (typing indicator).
+
+```typescript
+async sendShowInputStatusReq(peer: Peer, eventType: number)
+```
+
+<ParamField path="peer" type="Peer" required>
+  Target peer
+</ParamField>
+
+<ParamField path="eventType" type="number" required>
+  Event type (e.g., typing)
+</ParamField>

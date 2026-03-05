@@ -1,0 +1,320 @@
+---
+title: Native Packet Handler
+description: Deep dive into NapCat's native packet handling system for low-level protocol inspection
+icon: code
+---
+
+## Overview
+
+The `NativePacketHandler` class provides low-level access to QQ protocol packets by hooking into NTQQ's native send/receive functions. This enables developers to inspect, monitor, and analyze raw protocol data flowing through the QQ client.
+
+<Warning>
+The NativePacketHandler uses native binary modules and requires platform-specific binaries. Improper use can cause crashes or unexpected behavior.
+</Warning>
+
+## Architecture
+
+The packet handler is implemented in `packages/napcat-core/packet/handler/client.ts:28` and uses the MoeHoo native module to hook packet transmission.
+
+### Supported Platforms
+
+- `win32.x64` - Windows 64-bit
+- `linux.x64` - Linux 64-bit
+- `linux.arm64` - Linux ARM64
+- `darwin.x64` - macOS Intel
+- `darwin.arm64` - macOS Apple Silicon
+
+### Packet Types
+
+```typescript
+export type PacketType = 0 | 1; // 0: send, 1: recv
+export type PacketCallback = (data: {
+  type: PacketType,
+  uin: string,
+  cmd: string,
+  seq: number,
+  hex_data: string;
+}) => void;
+```
+
+## Initialization
+
+The packet handler requires version-specific memory offsets defined in `packet.json`:
+
+```typescript
+import { NativePacketHandler } from '@napcat/core';
+
+const handler = new NativePacketHandler({ logger });
+
+// Initialize with QQ version and optional O3 hook mode
+const success = await handler.init('9.9.27-45758', false);
+
+if (!success) {
+  console.error('Failed to initialize packet handler');
+}
+```
+
+### Version Offset Format
+
+Offsets are stored as `{version}-{build}-{arch}`:
+
+```json
+{
+  "9.9.27-45758-x64": {
+    "send": "2E5C4A0",
+    "recv": "2E5FA20"
+  }
+}
+```
+
+## Listening to Packets
+
+### Basic Listeners
+
+The handler provides flexible event registration methods:
+
+#### Listen to All Packets
+
+```typescript
+const unsubscribe = handler.onAll((data) => {
+  console.log(`[${data.type === 0 ? 'SEND' : 'RECV'}] ${data.cmd}`);
+  console.log(`UIN: ${data.uin}, SEQ: ${data.seq}`);
+  console.log(`Data: ${data.hex_data}`);
+});
+
+// Cleanup
+unsubscribe();
+```
+
+#### Listen by Packet Type
+
+```typescript
+// Monitor all outgoing packets
+handler.onSend((data) => {
+  console.log(`Sending packet: ${data.cmd}`);
+});
+
+// Monitor all incoming packets
+handler.onRecv((data) => {
+  console.log(`Received packet: ${data.cmd}`);
+});
+
+// Or use type directly
+handler.onType(0, callback); // 0 = send
+handler.onType(1, callback); // 1 = recv
+```
+
+#### Listen by Command
+
+```typescript
+// Monitor specific protocol command
+handler.onCmd('trpc.msg.olpush.OlPushService.MsgPush', (data) => {
+  console.log('New message received:', data.hex_data);
+});
+
+// Monitor file upload commands
+handler.onCmd('trpc.highway.HighwayEchoService.Echo', (data) => {
+  console.log('File transfer:', data);
+});
+```
+
+#### Exact Matching
+
+```typescript
+// Listen to specific type + command combination
+handler.onExact(1, 'trpc.msg.register_proxy.RegisterProxy.InfoSyncPush', (data) => {
+  console.log('Sync push received:', data);
+});
+```
+
+### One-Time Listeners
+
+All listener methods have `once` variants that auto-remove after first trigger:
+
+```typescript
+// Wait for next packet
+handler.onceAll((data) => {
+  console.log('Got one packet, listener removed');
+});
+
+handler.onceSend(callback);
+handler.onceRecv(callback);
+handler.onceCmd('command.name', callback);
+handler.onceExact(1, 'command.name', callback);
+```
+
+## Listener Priority
+
+When a packet is received, listeners are triggered in this order:
+
+1. **Exact match** - `exact:type:cmd`
+2. **Command match** - `cmd:xxx`
+3. **Type match** - `type:0` or `type:1`
+4. **Global** - `all`
+
+From `client.ts:166`:
+
+```typescript
+private emitPacket(type: PacketType, uin: string, cmd: string, seq: number, hex_data: string): void {
+  const keys = [
+    `exact:${type}:${cmd}`,  // Highest priority
+    `cmd:${cmd}`,
+    `type:${type}`,
+    'all',                    // Lowest priority
+  ];
+  // ... trigger listeners in order
+}
+```
+
+## Managing Listeners
+
+### Removing Listeners
+
+```typescript
+// Use returned unsubscribe function
+const unsub = handler.onCmd('some.command', callback);
+unsub(); // Remove this specific listener
+
+// Or use off() with key
+handler.off('cmd:some.command', callback);
+
+// Remove all listeners for a key
+handler.offAll('cmd:some.command');
+
+// Remove ALL listeners
+handler.removeAllListeners();
+```
+
+## Practical Examples
+
+### Monitor Message Flow
+
+```typescript
+handler.onCmd('trpc.msg.olpush.OlPushService.MsgPush', (data) => {
+  const buffer = Buffer.from(data.hex_data, 'hex');
+  // Parse protobuf or analyze raw data
+  console.log('Message packet:', buffer.length, 'bytes');
+});
+```
+
+### Packet Statistics
+
+```typescript
+const stats = { send: 0, recv: 0, commands: new Map() };
+
+handler.onType(0, () => stats.send++);
+handler.onType(1, () => stats.recv++);
+
+handler.onAll((data) => {
+  const count = stats.commands.get(data.cmd) || 0;
+  stats.commands.set(data.cmd, count + 1);
+});
+
+setInterval(() => {
+  console.log('Stats:', stats);
+  console.log('Top commands:', 
+    Array.from(stats.commands.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+  );
+}, 60000);
+```
+
+### Debug Specific Protocol Flow
+
+```typescript
+let seq = 0;
+
+// Track request
+handler.onceSend((data) => {
+  if (data.cmd === 'trpc.group.manage.GroupManage.GetGroupInfo') {
+    seq = data.seq;
+    console.log('Request sent, seq:', seq);
+    
+    // Wait for response with same seq
+    handler.onceRecv((resp) => {
+      if (resp.seq === seq) {
+        console.log('Response received:', resp.hex_data);
+      }
+    });
+  }
+});
+```
+
+### Packet Transformation
+
+While the current implementation doesn't support modifying packets, you can log and analyze them:
+
+```typescript
+handler.onAll((data) => {
+  const logEntry = {
+    timestamp: Date.now(),
+    direction: data.type === 0 ? 'OUT' : 'IN',
+    uin: data.uin,
+    command: data.cmd,
+    sequence: data.seq,
+    size: data.hex_data.length / 2, // hex string to bytes
+  };
+  
+  // Store for analysis
+  fs.appendFileSync('packets.jsonl', JSON.stringify(logEntry) + '\n');
+});
+```
+
+## Common Protocol Commands
+
+Some frequently seen commands:
+
+- `trpc.msg.olpush.OlPushService.MsgPush` - Incoming messages
+- `trpc.msg.msg_svc.MsgService.SendMsg` - Outgoing messages
+- `trpc.group.manage.GroupManage.*` - Group management
+- `trpc.highway.*` - File transfers
+- `trpc.msg.register_proxy.RegisterProxy.*` - Status sync
+
+## Error Handling
+
+```typescript
+try {
+  handler.onCmd('some.command', (data) => {
+    // Listener errors are caught internally
+    throw new Error('This won\'t crash the app');
+  });
+} catch (e) {
+  // Errors during registration
+  console.error('Failed to register listener:', e);
+}
+```
+
+From `client.ts:180`, listener errors are logged but don't propagate:
+
+```typescript
+try {
+  entry.callback({ type, uin, cmd, seq, hex_data });
+  if (entry.once) {
+    toRemove.push(entry);
+  }
+} catch (error) {
+  this.logger.logError('监听器回调执行出错:', error);
+}
+```
+
+## Best Practices
+
+1. **Always check initialization**: Verify `init()` returns `true` before registering listeners
+2. **Clean up listeners**: Use the returned unsubscribe functions to prevent memory leaks
+3. **Use specific listeners**: Prefer `onCmd()` or `onExact()` over `onAll()` for better performance
+4. **Handle hex data carefully**: Convert to Buffer before processing binary data
+5. **Test across platforms**: Native modules behave differently on each OS
+
+## Limitations
+
+- **Read-only**: Cannot modify packets in-flight (current implementation)
+- **Platform-dependent**: Requires correct binary for your OS/arch
+- **Version-specific**: Memory offsets change with each QQ update
+- **No protobuf parsing**: Hex data must be decoded separately
+
+## Related APIs
+
+- [Service Register](/advanced/service-register) - Protocol service handlers
+- [Bypass Mode](/advanced/bypass-mode) - Native module security bypass
+- [Database API](/advanced/database-api) - Access NTQQ databases

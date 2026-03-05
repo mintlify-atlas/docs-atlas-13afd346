@@ -1,122 +1,140 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "NapCat",
+  "theme": "aspen",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#91a8c6",
+    "light": "#cdd3df",
+    "dark": "#91a8c6"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "https://icons.duckduckgo.com/ip3/napneko.github.io.ico",
+  "logo": {
+    "light": "https://media.brand.dev/4c8c6cbc-97eb-4d4a-b3ad-90a9ca5f6d39.png",
+    "dark": "https://media.brand.dev/4c8c6cbc-97eb-4d4a-b3ad-90a9ca5f6d39.png"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/NapNeko/NapCatQQ"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/NapNeko/NapCatQQ"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Getting Started",
             "pages": [
-              "index",
+              "introduction",
               "quickstart",
-              "development"
+              "installation"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Concepts",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "concepts/architecture",
+              "concepts/onebot-protocol",
+              "concepts/working-environments",
+              "concepts/adapters"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Configuration",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "config/napcat-config",
+              "config/onebot-config",
+              "config/network-adapters",
+              "config/webui"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Guides",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "guides/deployment",
+              "guides/login-methods",
+              "guides/message-handling",
+              "guides/plugin-development",
+              "guides/packet-inspection"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/native-packet-handler",
+              "advanced/database-api",
+              "advanced/bypass-mode",
+              "advanced/custom-adapters"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Core APIs",
             "pages": [
-              "api-reference/introduction"
+              "api/core/overview",
+              "api/core/message",
+              "api/core/group",
+              "api/core/friend",
+              "api/core/user",
+              "api/core/file",
+              "api/core/system"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "OneBot Actions",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/onebot/overview",
+              "api/onebot/message-actions",
+              "api/onebot/group-actions",
+              "api/onebot/user-actions",
+              "api/onebot/file-actions",
+              "api/onebot/extended-actions"
+            ]
+          },
+          {
+            "group": "Events",
+            "pages": [
+              "api/events/overview",
+              "api/events/message-events",
+              "api/events/notice-events",
+              "api/events/request-events"
+            ]
+          },
+          {
+            "group": "Network",
+            "pages": [
+              "api/network/http",
+              "api/network/websocket",
+              "api/network/webhook"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Resources",
+        "groups": [
+          {
+            "group": "Resources",
+            "pages": [
+              "resources/troubleshooting",
+              "resources/faq",
+              "resources/migration-guide",
+              "resources/contributing",
+              "resources/community"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

@@ -1,0 +1,174 @@
+---
+title: OneBot 11 API Overview
+description: Overview of NapCat's OneBot 11 action system
+---
+
+## What is OneBot 11?
+
+OneBot 11 is a unified bot protocol standard that provides a consistent API interface for QQ bot frameworks. NapCat implements the OneBot 11 protocol, allowing you to build QQ bots using standardized actions and events.
+
+## Action System
+
+Actions are the core of OneBot 11 API - they allow you to interact with QQ by sending requests and receiving responses. Each action has:
+
+- **Action Name**: The identifier for the action (e.g., `send_msg`, `get_group_info`)
+- **Request Parameters**: Input data required by the action
+- **Response Data**: Output data returned after execution
+- **Return Codes**: Status codes indicating success or failure
+
+## How to Call Actions
+
+Actions can be called through different network adapters:
+
+### HTTP POST
+
+```bash
+POST /send_msg
+Content-Type: application/json
+
+{
+  "message_type": "private",
+  "user_id": "123456",
+  "message": "Hello!"
+}
+```
+
+### WebSocket
+
+```json
+{
+  "action": "send_msg",
+  "params": {
+    "message_type": "private",
+    "user_id": "123456",
+    "message": "Hello!"
+  },
+  "echo": "optional-request-id"
+}
+```
+
+## Response Format
+
+All actions return a standardized response:
+
+```json
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": {
+    // Response data specific to the action
+  },
+  "message": "",
+  "wording": "",
+  "echo": "optional-request-id"
+}
+```
+
+<ParamField path="status" type="string">
+  Response status: `ok` for success, `failed` for failure
+</ParamField>
+
+<ParamField path="retcode" type="number">
+  Return code: `0` for success, non-zero for errors
+</ParamField>
+
+<ParamField path="data" type="object">
+  Response data specific to each action
+</ParamField>
+
+<ParamField path="message" type="string">
+  Error message (only present on failure)
+</ParamField>
+
+<ParamField path="echo" type="any">
+  Echo value from request (WebSocket only)
+</ParamField>
+
+## Common Error Codes
+
+<ResponseField name="1400" type="error">
+  Request parameter error or business logic execution failed
+</ResponseField>
+
+<ResponseField name="1401" type="error">
+  Insufficient permissions
+</ResponseField>
+
+<ResponseField name="1404" type="error">
+  Resource not found
+</ResponseField>
+
+<ResponseField name="400" type="error">
+  Bad request (HTTP)
+</ResponseField>
+
+<ResponseField name="200" type="error">
+  Operation timeout or unknown error
+</ResponseField>
+
+## Action Categories
+
+NapCat organizes actions into several categories:
+
+### Message Actions
+Send, delete, and retrieve messages in private chats and groups.
+
+[View Message Actions →](/api/onebot/message-actions)
+
+### Group Actions
+Manage groups, members, permissions, and group settings.
+
+[View Group Actions →](/api/onebot/group-actions)
+
+### User Actions
+Get user information, friend lists, and send interactions.
+
+[View User Actions →](/api/onebot/user-actions)
+
+### File Actions
+Upload and download files in groups and private chats.
+
+[View File Actions →](/api/onebot/file-actions)
+
+### Extended Actions
+NapCat-specific extensions for advanced features like OCR, status setting, and more.
+
+[View Extended Actions →](/api/onebot/extended-actions)
+
+## Message Format
+
+Messages in OneBot 11 can be sent in three formats:
+
+### String (CQ Code)
+```json
+{
+  "message": "[CQ:at,qq=123456] Hello!"
+}
+```
+
+### Array (Recommended)
+```json
+{
+  "message": [
+    { "type": "at", "data": { "qq": "123456" } },
+    { "type": "text", "data": { "text": " Hello!" } }
+  ]
+}
+```
+
+### Single Segment
+```json
+{
+  "message": { "type": "text", "data": { "text": "Hello!" } }
+}
+```
+
+## Action Name Variants
+
+Each action supports three calling variants:
+
+- `action_name` - Standard synchronous call
+- `action_name_async` - Asynchronous execution
+- `action_name_rate_limited` - Rate-limited execution
+
+Example: `send_msg`, `send_msg_async`, `send_msg_rate_limited`

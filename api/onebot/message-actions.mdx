@@ -1,0 +1,423 @@
+---
+title: Message Actions
+description: OneBot 11 message sending and management actions
+---
+
+## send_msg
+
+Send a message to a private chat or group.
+
+### Request
+
+<ParamField path="message_type" type="string">
+  Message type: `private` or `group`
+</ParamField>
+
+<ParamField path="user_id" type="string">
+  User QQ number (for private messages)
+</ParamField>
+
+<ParamField path="group_id" type="string">
+  Group number (for group messages)
+</ParamField>
+
+<ParamField path="message" type="string | object | array" required>
+  Message content (supports CQ code string, message segment, or array)
+</ParamField>
+
+<ParamField path="auto_escape" type="boolean | string" default="false">
+  Send as plain text (disable CQ code parsing)
+</ParamField>
+
+#### Forward Message Extensions
+
+<ParamField path="source" type="string">
+  Forward message source name
+</ParamField>
+
+<ParamField path="news" type="array">
+  Forward message news items (array of `{text: string}`)
+</ParamField>
+
+<ParamField path="summary" type="string">
+  Forward message summary text
+</ParamField>
+
+<ParamField path="prompt" type="string">
+  Forward message prompt text
+</ParamField>
+
+### Response
+
+<ResponseField name="message_id" type="number">
+  Sent message ID
+</ResponseField>
+
+<ResponseField name="res_id" type="string">
+  Resource ID for forwarded messages
+</ResponseField>
+
+<ResponseField name="forward_id" type="string">
+  Forward ID (alias for `res_id`, go-cqhttp compatibility)
+</ResponseField>
+
+### Example
+
+```json
+// Request
+{
+  "message_type": "group",
+  "group_id": "123456",
+  "message": [
+    { "type": "text", "data": { "text": "Hello " } },
+    { "type": "at", "data": { "qq": "987654" } }
+  ]
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": {
+    "message_id": 12345678
+  }
+}
+```
+
+## send_private_msg
+
+Send a private message to a user.
+
+### Request
+
+<ParamField path="user_id" type="string" required>
+  User QQ number
+</ParamField>
+
+<ParamField path="group_id" type="string">
+  Group number (for temporary chats from group)
+</ParamField>
+
+<ParamField path="message" type="string | object | array" required>
+  Message content
+</ParamField>
+
+<ParamField path="auto_escape" type="boolean | string" default="false">
+  Send as plain text
+</ParamField>
+
+### Response
+
+<ResponseField name="message_id" type="number">
+  Sent message ID
+</ResponseField>
+
+### Example
+
+```json
+// Request
+{
+  "user_id": "123456",
+  "message": "Hello!"
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": {
+    "message_id": 12345678
+  }
+}
+```
+
+## send_group_msg
+
+Send a message to a group.
+
+### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+<ParamField path="message" type="string | object | array" required>
+  Message content
+</ParamField>
+
+<ParamField path="auto_escape" type="boolean | string" default="false">
+  Send as plain text
+</ParamField>
+
+### Response
+
+<ResponseField name="message_id" type="number">
+  Sent message ID
+</ResponseField>
+
+### Example
+
+```json
+// Request
+{
+  "group_id": "123456",
+  "message": "Hello group!"
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": {
+    "message_id": 12345678
+  }
+}
+```
+
+## delete_msg
+
+Recall a sent message.
+
+### Request
+
+<ParamField path="message_id" type="number | string" required>
+  Message ID to recall
+</ParamField>
+
+### Response
+
+<ResponseField name="result" type="null">
+  Returns `null` on success
+</ResponseField>
+
+### Example
+
+```json
+// Request
+{
+  "message_id": 12345678
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": null
+}
+```
+
+## get_msg
+
+Get message details by message ID.
+
+### Request
+
+<ParamField path="message_id" type="number | string" required>
+  Message ID to retrieve
+</ParamField>
+
+### Response
+
+<ResponseField name="time" type="number">
+  Message send time (Unix timestamp)
+</ResponseField>
+
+<ResponseField name="message_type" type="string">
+  Message type: `private` or `group`
+</ResponseField>
+
+<ResponseField name="message_id" type="number">
+  Message ID
+</ResponseField>
+
+<ResponseField name="real_id" type="number">
+  Real message ID
+</ResponseField>
+
+<ResponseField name="message_seq" type="number">
+  Message sequence number
+</ResponseField>
+
+<ResponseField name="sender" type="object">
+  Sender information
+</ResponseField>
+
+<ResponseField name="message" type="array">
+  Message content (array format)
+</ResponseField>
+
+<ResponseField name="raw_message" type="string">
+  Raw message text
+</ResponseField>
+
+<ResponseField name="font" type="number">
+  Font size
+</ResponseField>
+
+<ResponseField name="group_id" type="number | string">
+  Group number (if group message)
+</ResponseField>
+
+<ResponseField name="user_id" type="number | string">
+  Sender QQ number
+</ResponseField>
+
+<ResponseField name="emoji_likes_list" type="array">
+  Emoji reactions list
+</ResponseField>
+
+### Example
+
+```json
+// Request
+{
+  "message_id": 12345678
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": {
+    "time": 1234567890,
+    "message_type": "group",
+    "message_id": 12345678,
+    "real_id": 12345678,
+    "message_seq": 12345678,
+    "sender": {
+      "user_id": 123456,
+      "nickname": "User",
+      "card": "Card Name"
+    },
+    "message": [
+      { "type": "text", "data": { "text": "Hello" } }
+    ],
+    "raw_message": "Hello",
+    "font": 0,
+    "group_id": 654321,
+    "user_id": 123456,
+    "emoji_likes_list": []
+  }
+}
+```
+
+## get_forward_msg
+
+Get the content of a forwarded message.
+
+### Request
+
+<ParamField path="message_id" type="string">
+  Message ID (numeric)
+</ParamField>
+
+<ParamField path="id" type="string">
+  Message ID or resource ID (alternative parameter)
+</ParamField>
+
+### Response
+
+<ResponseField name="messages" type="array">
+  Array of forwarded message nodes
+</ResponseField>
+
+### Example
+
+```json
+// Request
+{
+  "message_id": "12345678"
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": {
+    "messages": [
+      {
+        "type": "node",
+        "data": {
+          "user_id": 123456,
+          "nickname": "User1",
+          "message": [
+            { "type": "text", "data": { "text": "Message 1" } }
+          ]
+        }
+      },
+      {
+        "type": "node",
+        "data": {
+          "user_id": 789012,
+          "nickname": "User2",
+          "message": [
+            { "type": "text", "data": { "text": "Message 2" } }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
+## Forward Messages
+
+To send forward messages, use the `send_msg` action with node-type message segments:
+
+```json
+{
+  "message_type": "group",
+  "group_id": "123456",
+  "message": [
+    {
+      "type": "node",
+      "data": {
+        "user_id": "123456",
+        "nickname": "User1",
+        "content": [
+          { "type": "text", "data": { "text": "Message 1" } }
+        ]
+      }
+    },
+    {
+      "type": "node",
+      "data": {
+        "user_id": "789012",
+        "nickname": "User2",
+        "content": [
+          { "type": "text", "data": { "text": "Message 2" } }
+        ]
+      }
+    }
+  ],
+  "source": "Chat History",
+  "summary": "2 messages",
+  "prompt": "[Chat History]"
+}
+```
+
+<Note>
+Forward messages must contain only `node` type segments. You cannot mix node segments with other message types.
+</Note>
+
+## Additional Message Actions
+
+### set_msg_emoji_like
+
+Add an emoji reaction to a message.
+
+<ParamField path="message_id" type="string" required>
+  Message ID
+</ParamField>
+
+<ParamField path="emoji_id" type="string" required>
+  Emoji ID to react with
+</ParamField>
+
+### mark_msg_as_read
+
+Mark messages as read (go-cqhttp extension).
+
+<ParamField path="message_id" type="number | string" required>
+  Message ID to mark as read
+</ParamField>

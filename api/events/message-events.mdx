@@ -1,0 +1,477 @@
+---
+title: Message Events
+description: Handle incoming messages from private chats and groups
+---
+
+## Overview
+
+Message events are triggered when the bot receives a message. NapCat supports both private (direct) messages and group messages, following the OneBot 11 standard.
+
+## Common Fields
+
+All message events share these fields:
+
+<ResponseField name="time" type="number" required>
+  Unix timestamp (in seconds) when the message was sent
+</ResponseField>
+
+<ResponseField name="self_id" type="number" required>
+  The bot's QQ number
+</ResponseField>
+
+<ResponseField name="post_type" type="string" required>
+  Always `"message"` for message events
+</ResponseField>
+
+<ResponseField name="message_type" type="string" required>
+  Type of message: `"private"` or `"group"`
+</ResponseField>
+
+<ResponseField name="sub_type" type="string" required>
+  Sub-type of the message:
+  - For private: `"friend"`, `"group"` (temp chat from group), or `"normal"`
+  - For group: `"normal"`, `"anonymous"`, or `"notice"`
+</ResponseField>
+
+<ResponseField name="message_id" type="number" required>
+  Unique message ID for this message
+</ResponseField>
+
+<ResponseField name="message_seq" type="number" required>
+  Message sequence number
+</ResponseField>
+
+<ResponseField name="user_id" type="number" required>
+  QQ number of the message sender
+</ResponseField>
+
+<ResponseField name="message" type="array | string" required>
+  Message content as an array of message segments (or string in CQ code format)
+</ResponseField>
+
+<ResponseField name="raw_message" type="string" required>
+  Plain text representation of the message
+</ResponseField>
+
+<ResponseField name="font" type="number" required>
+  Font ID (usually 14)
+</ResponseField>
+
+<ResponseField name="sender" type="object" required>
+  Information about the message sender
+  
+  <Expandable title="sender fields">
+    <ResponseField name="user_id" type="number" required>
+      Sender's QQ number
+    </ResponseField>
+    
+    <ResponseField name="nickname" type="string" required>
+      Sender's nickname
+    </ResponseField>
+    
+    <ResponseField name="card" type="string">
+      Group card name (group messages only)
+    </ResponseField>
+    
+    <ResponseField name="role" type="string">
+      Role in group: `"owner"`, `"admin"`, or `"member"` (group messages only)
+    </ResponseField>
+    
+    <ResponseField name="sex" type="string">
+      Gender: `"male"`, `"female"`, or `"unknown"`
+    </ResponseField>
+    
+    <ResponseField name="age" type="number">
+      Age (may be 0 if not available)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Private Message Event
+
+Private messages are direct messages sent to the bot.
+
+### Additional Fields
+
+<ResponseField name="message_type" type="string" required>
+  Always `"private"`
+</ResponseField>
+
+<ResponseField name="sub_type" type="string" required>
+  - `"friend"` - Message from a friend
+  - `"group"` - Temporary chat from group member
+  - `"normal"` - Normal private message
+</ResponseField>
+
+<ResponseField name="temp_source" type="number">
+  Source of temporary chat (present when sub_type is "group")
+</ResponseField>
+
+### Example: Friend Message
+
+```json
+{
+  "time": 1709641234,
+  "self_id": 123456789,
+  "post_type": "message",
+  "message_type": "private",
+  "sub_type": "friend",
+  "message_id": 123456,
+  "message_seq": 78901,
+  "real_id": 123456,
+  "user_id": 987654321,
+  "message": [
+    {
+      "type": "text",
+      "data": {
+        "text": "Hello, bot!"
+      }
+    }
+  ],
+  "raw_message": "Hello, bot!",
+  "font": 14,
+  "sender": {
+    "user_id": 987654321,
+    "nickname": "Alice",
+    "sex": "female",
+    "age": 20
+  }
+}
+```
+
+### Example: Temporary Chat from Group
+
+```json
+{
+  "time": 1709641234,
+  "self_id": 123456789,
+  "post_type": "message",
+  "message_type": "private",
+  "sub_type": "group",
+  "temp_source": 12345678,
+  "message_id": 234567,
+  "user_id": 987654321,
+  "message": [
+    {
+      "type": "text",
+      "data": {
+        "text": "Private message from group"
+      }
+    }
+  ],
+  "raw_message": "Private message from group",
+  "font": 14,
+  "sender": {
+    "user_id": 987654321,
+    "nickname": "Bob",
+    "sex": "unknown",
+    "age": 0
+  }
+}
+```
+
+## Group Message Event
+
+Group messages are messages sent in group chats where the bot is a member.
+
+### Additional Fields
+
+<ResponseField name="message_type" type="string" required>
+  Always `"group"`
+</ResponseField>
+
+<ResponseField name="group_id" type="number" required>
+  Group number where the message was sent
+</ResponseField>
+
+<ResponseField name="group_name" type="string">
+  Name of the group
+</ResponseField>
+
+<ResponseField name="sub_type" type="string" required>
+  - `"normal"` - Normal group message
+  - `"anonymous"` - Anonymous message
+  - `"notice"` - System notice
+</ResponseField>
+
+### Example: Normal Group Message
+
+```json
+{
+  "time": 1709641234,
+  "self_id": 123456789,
+  "post_type": "message",
+  "message_type": "group",
+  "sub_type": "normal",
+  "message_id": 345678,
+  "message_seq": 90123,
+  "group_id": 12345678,
+  "group_name": "Bot Testing Group",
+  "user_id": 987654321,
+  "message": [
+    {
+      "type": "text",
+      "data": {
+        "text": "Hello everyone!"
+      }
+    }
+  ],
+  "raw_message": "Hello everyone!",
+  "font": 14,
+  "sender": {
+    "user_id": 987654321,
+    "nickname": "Charlie",
+    "card": "Group Leader",
+    "role": "admin",
+    "sex": "male",
+    "age": 25,
+    "area": "",
+    "level": "10",
+    "title": "Active Member"
+  }
+}
+```
+
+### Example: Group Message with At
+
+```json
+{
+  "time": 1709641234,
+  "self_id": 123456789,
+  "post_type": "message",
+  "message_type": "group",
+  "sub_type": "normal",
+  "message_id": 456789,
+  "group_id": 12345678,
+  "user_id": 987654321,
+  "message": [
+    {
+      "type": "at",
+      "data": {
+        "qq": "123456789"
+      }
+    },
+    {
+      "type": "text",
+      "data": {
+        "text": " Are you there?"
+      }
+    }
+  ],
+  "raw_message": "[CQ:at,qq=123456789] Are you there?",
+  "font": 14,
+  "sender": {
+    "user_id": 987654321,
+    "nickname": "Diana",
+    "card": "",
+    "role": "member"
+  }
+}
+```
+
+## Message Content
+
+The `message` field contains an array of message segments. Each segment has a `type` and `data` field.
+
+### Text Segment
+
+```json
+{
+  "type": "text",
+  "data": {
+    "text": "Hello, world!"
+  }
+}
+```
+
+### Image Segment
+
+```json
+{
+  "type": "image",
+  "data": {
+    "file": "file:///path/to/image.jpg",
+    "url": "https://example.com/image.jpg",
+    "file_size": "123456"
+  }
+}
+```
+
+### Face Segment (Emoji)
+
+```json
+{
+  "type": "face",
+  "data": {
+    "id": "1"
+  }
+}
+```
+
+### At Segment
+
+```json
+{
+  "type": "at",
+  "data": {
+    "qq": "123456789",
+    "name": "Nickname"
+  }
+}
+```
+
+### Reply Segment
+
+```json
+{
+  "type": "reply",
+  "data": {
+    "id": "123456"
+  }
+}
+```
+
+### Record Segment (Voice)
+
+```json
+{
+  "type": "record",
+  "data": {
+    "file": "file:///path/to/audio.silk",
+    "url": "https://example.com/audio.silk"
+  }
+}
+```
+
+### Video Segment
+
+```json
+{
+  "type": "video",
+  "data": {
+    "file": "file:///path/to/video.mp4",
+    "url": "https://example.com/video.mp4"
+  }
+}
+```
+
+### Forward Segment
+
+```json
+{
+  "type": "forward",
+  "data": {
+    "id": "forward_message_id"
+  }
+}
+```
+
+## CQ Code Format
+
+Messages can also be represented as CQ code strings in the `raw_message` field:
+
+```
+Hello [CQ:face,id=1] [CQ:at,qq=123456789] [CQ:image,file=abc.jpg]
+```
+
+CQ codes follow the format:
+```
+[CQ:type,param1=value1,param2=value2]
+```
+
+## Handling Messages
+
+### Basic Message Handler
+
+```javascript
+function handleMessage(event) {
+  if (event.message_type === 'private') {
+    console.log(`Private message from ${event.sender.nickname}: ${event.raw_message}`);
+  } else if (event.message_type === 'group') {
+    console.log(`Group message in ${event.group_name} from ${event.sender.nickname}: ${event.raw_message}`);
+  }
+}
+```
+
+### Checking for At Mentions
+
+```javascript
+function isAtBot(event, botQQ) {
+  if (!Array.isArray(event.message)) return false;
+  
+  return event.message.some(seg => 
+    seg.type === 'at' && seg.data.qq === botQQ.toString()
+  );
+}
+
+if (event.message_type === 'group' && isAtBot(event, event.self_id)) {
+  console.log('Bot was mentioned!');
+}
+```
+
+### Processing Images
+
+```javascript
+function getImages(event) {
+  if (!Array.isArray(event.message)) return [];
+  
+  return event.message
+    .filter(seg => seg.type === 'image')
+    .map(seg => seg.data.url || seg.data.file);
+}
+
+const images = getImages(event);
+if (images.length > 0) {
+  console.log(`Message contains ${images.length} image(s)`);
+}
+```
+
+### Extracting Plain Text
+
+```javascript
+function getPlainText(event) {
+  if (!Array.isArray(event.message)) return event.raw_message;
+  
+  return event.message
+    .filter(seg => seg.type === 'text')
+    .map(seg => seg.data.text)
+    .join('');
+}
+
+const text = getPlainText(event).trim();
+if (text.startsWith('/')) {
+  // Handle command
+  const command = text.slice(1).split(' ')[0];
+  console.log(`Command: ${command}`);
+}
+```
+
+## Quick Reply
+
+When using HTTP POST adapter, you can reply to messages by returning a response:
+
+```javascript
+app.post('/event', (req, res) => {
+  const event = req.body;
+  
+  if (event.post_type === 'message') {
+    // Quick reply
+    res.json({
+      reply: 'Thanks for your message!',
+      at_sender: event.message_type === 'group',  // At sender in groups
+      delete: false,  // Don't delete the original message
+      kick: false,    // Don't kick the sender
+      ban: false,     // Don't ban the sender
+      ban_duration: 0 // Ban duration in seconds
+    });
+  } else {
+    res.status(204).send();
+  }
+});
+```
+
+## Next Steps
+
+- Learn about [Notice Events](/api/events/notice-events)
+- Explore [Message Actions](/api/onebot/message-actions) to send messages
+- Check [OneBot Actions Overview](/api/onebot/overview) for responding to messages

@@ -1,0 +1,379 @@
+---
+title: Friend API
+description: NTQQFriendApi methods for managing friends and friend requests
+---
+
+## Overview
+
+The `NTQQFriendApi` class provides methods for managing friend lists, handling friend requests, and performing friend-related operations.
+
+## Friend List
+
+### getBuddy
+
+Get the complete friend list.
+
+```typescript
+async getBuddy(): Promise<FriendV2[]>
+```
+
+<ResponseField name="return" type="FriendV2[]">
+  Array of friend objects with detailed information
+</ResponseField>
+
+**Example:**
+
+```typescript
+const friends = await core.apis.FriendApi.getBuddy();
+friends.forEach(friend => {
+  console.log(`${friend.nick} (${friend.uin})`);
+});
+```
+
+### getBuddyV2SimpleInfoMap
+
+Get friend list as a map of UID to user info.
+
+```typescript
+async getBuddyV2SimpleInfoMap(): Promise<Map<string, FriendV2>>
+```
+
+<ResponseField name="return" type="Map<string, FriendV2>">
+  Map with UID as key and friend info as value
+</ResponseField>
+
+### getBuddyIdMap
+
+Get a map of UIN to UID for friends.
+
+```typescript
+async getBuddyIdMap(): Promise<LimitedHashTable<string, string>>
+```
+
+<ResponseField name="return" type="LimitedHashTable<string, string>">
+  Hash table mapping UIN to UID
+</ResponseField>
+
+**Example:**
+
+```typescript
+const idMap = await core.apis.FriendApi.getBuddyIdMap();
+const uid = idMap.get('123456789'); // Get UID from UIN
+```
+
+### getBuddyV2ExWithCate
+
+Get friend list with category information.
+
+```typescript
+async getBuddyV2ExWithCate(): Promise<Array<{
+  categoryId: number;
+  categorySortId: number;
+  categoryName: string;
+  categoryMbCount: number;
+  onlineCount: number;
+  buddyList: FriendV2[];
+}>>
+```
+
+<ResponseField name="return" type="Array<CategoryInfo>">
+  Array of friend categories with their members
+</ResponseField>
+
+**Example:**
+
+```typescript
+const categories = await core.apis.FriendApi.getBuddyV2ExWithCate();
+categories.forEach(cat => {
+  console.log(`Category: ${cat.categoryName}`);
+  console.log(`Friends: ${cat.categoryMbCount}`);
+  console.log(`Online: ${cat.onlineCount}`);
+  cat.buddyList.forEach(friend => {
+    console.log(`  - ${friend.nick}`);
+  });
+});
+```
+
+## Friend Management
+
+### isBuddy
+
+Check if a user is a friend.
+
+```typescript
+async isBuddy(uid: string): Promise<boolean>
+```
+
+<ParamField path="uid" type="string" required>
+  User UID to check
+</ParamField>
+
+<ResponseField name="return" type="boolean">
+  true if user is a friend, false otherwise
+</ResponseField>
+
+**Example:**
+
+```typescript
+const isFriend = await core.apis.FriendApi.isBuddy('u_abc123');
+if (isFriend) {
+  console.log('User is already a friend');
+}
+```
+
+### setBuddyRemark
+
+Set remark/note for a friend.
+
+```typescript
+async setBuddyRemark(uid: string, remark: string)
+```
+
+<ParamField path="uid" type="string" required>
+  Friend UID
+</ParamField>
+
+<ParamField path="remark" type="string" required>
+  New remark text
+</ParamField>
+
+**Example:**
+
+```typescript
+await core.apis.FriendApi.setBuddyRemark('u_abc123', 'My Best Friend');
+```
+
+### delBuddy
+
+Delete a friend.
+
+```typescript
+async delBuddy(
+  uid: string,
+  tempBlock: boolean = false,
+  tempBothDel: boolean = false
+)
+```
+
+<ParamField path="uid" type="string" required>
+  Friend UID to delete
+</ParamField>
+
+<ParamField path="tempBlock" type="boolean" default="false">
+  Whether to temporarily block the user
+</ParamField>
+
+<ParamField path="tempBothDel" type="boolean" default="false">
+  Whether to delete from both sides
+</ParamField>
+
+**Example:**
+
+```typescript
+// Simple delete
+await core.apis.FriendApi.delBuddy('u_abc123');
+
+// Delete and block
+await core.apis.FriendApi.delBuddy('u_abc123', true);
+```
+
+## Friend Requests
+
+### getBuddyReq
+
+Get list of pending friend requests.
+
+```typescript
+async getBuddyReq(): Promise<FriendRequest[]>
+```
+
+<ResponseField name="return" type="FriendRequest[]">
+  Array of friend request objects
+</ResponseField>
+
+**Example:**
+
+```typescript
+const requests = await core.apis.FriendApi.getBuddyReq();
+requests.forEach(req => {
+  console.log(`Request from: ${req.friendNick}`);
+  console.log(`Message: ${req.extWords}`);
+});
+```
+
+### handleFriendRequest
+
+Approve or reject a friend request.
+
+```typescript
+async handleFriendRequest(
+  notify: FriendRequest,
+  accept: boolean
+)
+```
+
+<ParamField path="notify" type="FriendRequest" required>
+  Friend request object from getBuddyReq()
+</ParamField>
+
+<ParamField path="accept" type="boolean" required>
+  true to accept, false to reject
+</ParamField>
+
+**Example:**
+
+```typescript
+const requests = await core.apis.FriendApi.getBuddyReq();
+
+for (const req of requests) {
+  // Accept all friend requests
+  await core.apis.FriendApi.handleFriendRequest(req, true);
+}
+```
+
+### clearBuddyReqUnreadCnt
+
+Clear unread count for friend requests.
+
+```typescript
+async clearBuddyReqUnreadCnt()
+```
+
+**Example:**
+
+```typescript
+await core.apis.FriendApi.clearBuddyReqUnreadCnt();
+```
+
+## Doubt Friend Requests
+
+"Doubt" friend requests are requests that need additional verification.
+
+### getDoubtFriendRequest
+
+Get list of doubt friend requests.
+
+```typescript
+async getDoubtFriendRequest(count: number): Promise<Array<{
+  flag: string;
+  uin: number;
+  nick: string;
+  source: string;
+  reason: string;
+  msg: string;
+  group_code: string;
+  time: string;
+  type: 'doubt';
+}>>
+```
+
+<ParamField path="count" type="number" required>
+  Number of requests to retrieve
+</ParamField>
+
+<ResponseField name="return" type="Array<DoubtRequest>">
+  Array of doubt friend request objects
+</ResponseField>
+
+**Example:**
+
+```typescript
+const doubtRequests = await core.apis.FriendApi.getDoubtFriendRequest(20);
+doubtRequests.forEach(req => {
+  console.log(`Doubt request from: ${req.nick}`);
+  console.log(`Source: ${req.source}`);
+  console.log(`Reason: ${req.reason}`);
+});
+```
+
+### handleDoubtFriendRequest
+
+Handle a doubt friend request.
+
+```typescript
+async handleDoubtFriendRequest(
+  friendUid: string,
+  str1: string = '',
+  str2: string = ''
+)
+```
+
+<ParamField path="friendUid" type="string" required>
+  Friend UID from doubt request
+</ParamField>
+
+<ParamField path="str1" type="string" default="''">
+  Additional parameter 1
+</ParamField>
+
+<ParamField path="str2" type="string" default="''">
+  Additional parameter 2
+</ParamField>
+
+**Example:**
+
+```typescript
+const doubtRequests = await core.apis.FriendApi.getDoubtFriendRequest(10);
+
+for (const req of doubtRequests) {
+  // Approve doubt request
+  await core.apis.FriendApi.handleDoubtFriendRequest(req.flag);
+}
+```
+
+## Complete Example
+
+Here's a complete example of handling friend requests:
+
+```typescript
+import { NapCatCore } from '@/napcat-core';
+
+async function manageFriendRequests(core: NapCatCore) {
+  // Get normal friend requests
+  const requests = await core.apis.FriendApi.getBuddyReq();
+  
+  console.log(`${requests.length} friend requests pending`);
+  
+  for (const req of requests) {
+    console.log(`\nRequest from: ${req.friendNick}`);
+    console.log(`UID: ${req.friendUid}`);
+    console.log(`Message: ${req.extWords}`);
+    
+    // Auto-accept if message contains "bot"
+    if (req.extWords.toLowerCase().includes('bot')) {
+      await core.apis.FriendApi.handleFriendRequest(req, true);
+      console.log('✓ Accepted');
+    } else {
+      console.log('⊘ Skipped');
+    }
+  }
+  
+  // Get doubt requests
+  const doubtRequests = await core.apis.FriendApi.getDoubtFriendRequest(20);
+  
+  console.log(`\n${doubtRequests.length} doubt requests pending`);
+  
+  for (const req of doubtRequests) {
+    console.log(`\nDoubt request from: ${req.nick}`);
+    console.log(`Source: ${req.source}`);
+    console.log(`Group: ${req.group_code}`);
+    
+    // Handle doubt request
+    await core.apis.FriendApi.handleDoubtFriendRequest(req.flag);
+    console.log('✓ Processed');
+  }
+  
+  // Clear unread count
+  await core.apis.FriendApi.clearBuddyReqUnreadCnt();
+}
+
+// Usage
+manageFriendRequests(core).catch(console.error);
+```
+
+## Notes
+
+- Friend operations may require appropriate permissions
+- UIDs and UINs are different identifiers - use conversion methods from UserApi if needed
+- Friend requests have expiration times and may become invalid
+- Some operations may have rate limits imposed by QQ servers

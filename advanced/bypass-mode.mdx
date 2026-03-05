@@ -1,0 +1,454 @@
+---
+title: Bypass Mode
+description: Configure native module security bypasses for NTQQ environment restrictions
+icon: shield-check
+---
+
+## Overview
+
+The `Napi2NativeLoader` enables bypassing NTQQ's security restrictions that prevent Node.js addons from accessing native APIs. This is required for advanced features like packet hooking and native module integration.
+
+<Warning>
+**Security Notice:**
+- Bypasses disable security features in the NTQQ environment
+- Only enable specific bypasses you need
+- Improper configuration can cause instability or crashes
+- Use at your own risk in production environments
+</Warning>
+
+## Architecture
+
+Implemented in `packages/napcat-core/packet/handler/napi2nativeLoader.ts:22`, the loader manages platform-specific native modules that patch NTQQ's security checks.
+
+### Supported Platforms
+
+- `win32.x64` - Windows 64-bit
+- `linux.x64` - Linux 64-bit  
+- `linux.arm64` - Linux ARM64
+- `darwin.x64` - macOS Intel
+- `darwin.arm64` - macOS Apple Silicon
+
+## Initialization
+
+### Basic Setup
+
+```typescript
+import { Napi2NativeLoader } from '@napcat/core';
+
+const loader = new Napi2NativeLoader({ logger });
+
+if (!loader.loaded) {
+  console.error('Napi2Native module not available on this platform');
+  return;
+}
+
+console.log('Napi2Native loaded successfully');
+```
+
+### Loading Process
+
+The loader automatically attempts to load the native module on construction:
+
+```typescript
+private load(): void {
+  const platform = process.platform + '.' + process.arch;
+  
+  if (!this.supportedPlatforms.includes(platform)) {
+    this.logger.logWarn(`Napi2NativeLoader: 不支持的平台: ${platform}`);
+    this._loaded = false;
+    return;
+  }
+  
+  const nativeModulePath = path.join(
+    dirname(fileURLToPath(import.meta.url)),
+    './native/napi2native/napi2native.' + platform + '.node'
+  );
+  
+  if (!fs.existsSync(nativeModulePath)) {
+    this.logger.logWarn(`Napi2NativeLoader: 缺失运行时文件: ${nativeModulePath}`);
+    this._loaded = false;
+    return;
+  }
+  
+  // Load native module
+}
+```
+
+## Bypass Options
+
+The `enableAllBypasses` function accepts granular control over which security features to bypass:
+
+```typescript
+export interface BypassOptions {
+  hook?: boolean;       // Hook/detour functionality
+  window?: boolean;     // Window/GUI access
+  module?: boolean;     // Module loading restrictions  
+  process?: boolean;    // Process/system API access
+  container?: boolean;  // Container/sandbox bypass
+  js?: boolean;         // JavaScript engine restrictions
+}
+```
+
+### Enable All Bypasses
+
+```typescript
+const success = loader.nativeExports.enableAllBypasses?.();
+
+if (success) {
+  console.log('All security bypasses enabled');
+} else {
+  console.error('Failed to enable bypasses');
+}
+```
+
+### Selective Bypass Configuration
+
+```typescript
+const success = loader.nativeExports.enableAllBypasses?.({
+  hook: true,      // Enable hooking (required for packet handler)
+  module: true,    // Enable module loading
+  process: false,  // Keep process restrictions
+  window: false,   // Keep window restrictions
+  container: false,
+  js: false
+});
+
+if (success) {
+  console.log('Selected bypasses enabled');
+}
+```
+
+## Common Configurations
+
+### Minimal Configuration (Packet Handling Only)
+
+For basic packet monitoring:
+
+```typescript
+const loader = new Napi2NativeLoader({ logger });
+
+if (loader.loaded) {
+  loader.nativeExports.enableAllBypasses?.({
+    hook: true,    // Required for packet hooks
+    module: true,  // Required to load hook modules
+  });
+}
+```
+
+### Full Access Configuration
+
+For development or debugging:
+
+```typescript
+if (loader.loaded) {
+  loader.nativeExports.enableAllBypasses?.({
+    hook: true,
+    window: true,
+    module: true,
+    process: true,
+    container: true,
+    js: true,
+  });
+  
+  console.log('All restrictions bypassed - use with caution');
+}
+```
+
+### Production Configuration
+
+For production bots with minimal risk:
+
+```typescript
+if (loader.loaded) {
+  // Only enable what's strictly necessary
+  loader.nativeExports.enableAllBypasses?.({
+    hook: true,   // For packet monitoring
+    module: true, // For loading required modules
+  });
+  
+  console.log('Production bypasses enabled');
+}
+```
+
+## Verbose Logging
+
+Enable detailed logging from the native module:
+
+```typescript
+loader.nativeExports.setVerbose?.(true); // Enable verbose logging
+
+// Your bypass operations...
+
+loader.nativeExports.setVerbose?.(false); // Disable when done
+```
+
+<Note>
+Verbose mode is disabled by default for performance. Only enable during debugging.
+</Note>
+
+## Hook Initialization
+
+After enabling bypasses, initialize hooks with memory offsets:
+
+```typescript
+import offset from '@/napcat-core/external/packet.json';
+
+const version = '9.9.27-45758';
+const arch = process.arch;
+const versionArch = `${version}-${arch}`;
+
+if (!offset[versionArch]) {
+  console.error('No offsets available for this version');
+  return;
+}
+
+const { send, recv } = offset[versionArch];
+
+const success = loader.initHook(send, recv);
+
+if (success) {
+  console.log('Hooks initialized successfully');
+} else {
+  console.error('Hook initialization failed');
+}
+```
+
+## Complete Integration Example
+
+```typescript
+import { Napi2NativeLoader } from '@napcat/core';
+import { NativePacketHandler } from '@napcat/core';
+import offset from '@/napcat-core/external/packet.json';
+
+class BypassManager {
+  private loader: Napi2NativeLoader;
+  private packetHandler: NativePacketHandler;
+  
+  constructor(logger) {
+    this.loader = new Napi2NativeLoader({ logger });
+    this.packetHandler = new NativePacketHandler({ logger });
+  }
+  
+  async initialize(version: string): Promise<boolean> {
+    // Check if loader is available
+    if (!this.loader.loaded) {
+      console.error('Napi2Native not available on this platform');
+      return false;
+    }
+    
+    // Enable required bypasses
+    const bypassSuccess = this.loader.nativeExports.enableAllBypasses?.({
+      hook: true,
+      module: true,
+    });
+    
+    if (!bypassSuccess) {
+      console.error('Failed to enable bypasses');
+      return false;
+    }
+    
+    console.log('Bypasses enabled successfully');
+    
+    // Initialize packet handler hooks
+    const versionArch = `${version}-${process.arch}`;
+    const offsets = offset[versionArch];
+    
+    if (!offsets) {
+      console.error(`No offsets for version ${versionArch}`);
+      return false;
+    }
+    
+    const hookSuccess = this.loader.initHook(offsets.send, offsets.recv);
+    
+    if (!hookSuccess) {
+      console.error('Failed to initialize hooks');
+      return false;
+    }
+    
+    // Initialize packet handler
+    const packetSuccess = await this.packetHandler.init(version, false);
+    
+    if (!packetSuccess) {
+      console.error('Failed to initialize packet handler');
+      return false;
+    }
+    
+    console.log('Bypass system fully initialized');
+    return true;
+  }
+  
+  setupPacketMonitoring() {
+    this.packetHandler.onAll((data) => {
+      console.log(`[${data.type === 0 ? 'SEND' : 'RECV'}] ${data.cmd}`);
+    });
+  }
+}
+
+// Usage
+const manager = new BypassManager(logger);
+const success = await manager.initialize('9.9.27-45758');
+
+if (success) {
+  manager.setupPacketMonitoring();
+  console.log('System ready');
+}
+```
+
+## Security Implications
+
+### Hook Bypass (`hook: true`)
+
+- **Allows**: Function hooking, detours, memory patching
+- **Risk**: Code injection vulnerabilities
+- **Required for**: Packet monitoring, protocol analysis
+
+### Module Bypass (`module: true`)
+
+- **Allows**: Loading additional native modules
+- **Risk**: Malicious module loading
+- **Required for**: Plugin system, dynamic features
+
+### Process Bypass (`process: true`)
+
+- **Allows**: System API access, process manipulation
+- **Risk**: System-wide impact, privilege escalation
+- **Required for**: Advanced system integration
+
+### Window Bypass (`window: true`)
+
+- **Allows**: GUI access, window manipulation
+- **Risk**: UI hijacking
+- **Required for**: Custom UI features
+
+### Container Bypass (`container: true`)
+
+- **Allows**: Escape sandbox restrictions
+- **Risk**: Sandbox escape
+- **Required for**: Full system access
+
+### JavaScript Bypass (`js: true`)
+
+- **Allows**: Bypass JS engine restrictions
+- **Risk**: Arbitrary code execution
+- **Required for**: Advanced scripting
+
+## Error Handling
+
+```typescript
+try {
+  if (!loader.loaded) {
+    throw new Error('Native module not loaded');
+  }
+  
+  const success = loader.nativeExports.enableAllBypasses?.({
+    hook: true,
+    module: true,
+  });
+  
+  if (!success) {
+    throw new Error('Failed to enable bypasses');
+  }
+  
+  // Continue with initialization...
+  
+} catch (error) {
+  console.error('Bypass initialization error:', error);
+  // Fall back to restricted mode
+}
+```
+
+## Platform-Specific Considerations
+
+### Windows
+
+- Requires administrator privileges for some bypasses
+- Antivirus may flag native modules
+- Windows Defender may block hook operations
+
+### Linux
+
+- SELinux/AppArmor may interfere with bypasses
+- Permissions may need adjustment
+- Works best with relaxed security policies
+
+### macOS
+
+- System Integrity Protection (SIP) may block operations
+- Gatekeeper may prevent module loading
+- Requires appropriate entitlements
+
+## Debugging
+
+### Check Loader Status
+
+```typescript
+console.log('Platform:', process.platform + '.' + process.arch);
+console.log('Loaded:', loader.loaded);
+console.log('Exports:', Object.keys(loader.nativeExports));
+```
+
+### Verify Bypass Status
+
+```typescript
+const testBypass = () => {
+  const success = loader.nativeExports.enableAllBypasses?.({
+    hook: true,
+  });
+  
+  console.log('Bypass enabled:', success);
+  
+  // Try to initialize hook
+  const hookResult = loader.initHook('0', '0'); // Dummy offsets
+  console.log('Hook init (should fail with dummy offsets):', hookResult);
+};
+
+testBypass();
+```
+
+## Best Practices
+
+1. **Minimal bypasses**: Only enable what you need
+2. **Error handling**: Always check return values
+3. **Platform detection**: Verify platform support before loading
+4. **Graceful degradation**: Fall back to restricted mode if bypasses fail
+5. **Security audit**: Document which bypasses are enabled and why
+6. **Testing**: Test on all target platforms
+7. **Monitoring**: Log bypass operations for security audit
+
+## Troubleshooting
+
+### Module Not Loading
+
+```typescript
+if (!loader.loaded) {
+  console.log('Platform:', process.platform + '.' + process.arch);
+  console.log('Expected path:', './native/napi2native/napi2native.' + process.platform + '.' + process.arch + '.node');
+  console.log('Supported platforms:', ['win32.x64', 'linux.x64', 'linux.arm64', 'darwin.x64', 'darwin.arm64']);
+}
+```
+
+### Bypass Fails to Enable
+
+```typescript
+loader.nativeExports.setVerbose?.(true);
+const result = loader.nativeExports.enableAllBypasses?.(options);
+console.log('Bypass result:', result);
+// Check logs for native module errors
+```
+
+### Hook Initialization Fails
+
+```typescript
+const result = loader.initHook(send, recv);
+if (!result) {
+  console.error('Hook init failed');
+  console.log('Send offset:', send);
+  console.log('Recv offset:', recv);
+  console.log('Loader loaded:', loader.loaded);
+}
+```
+
+## Related APIs
+
+- [Native Packet Handler](/advanced/native-packet-handler) - Uses bypasses for packet hooking
+- [Custom Adapters](/advanced/custom-adapters) - May require module bypass

@@ -1,0 +1,454 @@
+---
+title: Request Events
+description: Handle friend requests and group invitations
+---
+
+## Overview
+
+Request events occur when someone wants to interact with the bot, such as sending a friend request or inviting the bot to a group. Your application can approve or reject these requests programmatically.
+
+## Common Fields
+
+All request events share these fields:
+
+<ResponseField name="time" type="number" required>
+  Unix timestamp (in seconds) when the request was made
+</ResponseField>
+
+<ResponseField name="self_id" type="number" required>
+  The bot's QQ number
+</ResponseField>
+
+<ResponseField name="post_type" type="string" required>
+  Always `"request"` for request events
+</ResponseField>
+
+<ResponseField name="request_type" type="string" required>
+  Type of request: `"friend"` or `"group"`
+</ResponseField>
+
+## Friend Request
+
+Triggered when someone sends a friend request to the bot.
+
+### Fields
+
+<ResponseField name="request_type" type="string" required>
+  Always `"friend"`
+</ResponseField>
+
+<ResponseField name="user_id" type="number" required>
+  QQ number of the requester
+</ResponseField>
+
+<ResponseField name="comment" type="string" required>
+  Friend request message/comment
+</ResponseField>
+
+<ResponseField name="flag" type="string" required>
+  Request flag for identifying and processing this request
+</ResponseField>
+
+### Example
+
+```json
+{
+  "time": 1709641234,
+  "self_id": 123456789,
+  "post_type": "request",
+  "request_type": "friend",
+  "user_id": 987654321,
+  "comment": "Hello! I'd like to add you as a friend.",
+  "flag": "flag_1234567890"
+}
+```
+
+### Handling Friend Requests
+
+To approve or reject a friend request, use the `set_friend_add_request` action:
+
+```javascript
+if (event.request_type === 'friend') {
+  // Auto-approve friend requests
+  await callAction('set_friend_add_request', {
+    flag: event.flag,
+    approve: true,
+    remark: 'New Friend'  // Optional: set a remark
+  });
+  
+  console.log(`Approved friend request from ${event.user_id}`);
+}
+```
+
+To reject a request:
+
+```javascript
+if (event.request_type === 'friend') {
+  // Check if comment contains spam keywords
+  const spamKeywords = ['spam', 'advertisement', 'promo'];
+  const isSpam = spamKeywords.some(keyword => 
+    event.comment.toLowerCase().includes(keyword)
+  );
+  
+  if (isSpam) {
+    // Reject the request
+    await callAction('set_friend_add_request', {
+      flag: event.flag,
+      approve: false
+    });
+    
+    console.log(`Rejected spam friend request from ${event.user_id}`);
+  } else {
+    // Approve legitimate requests
+    await callAction('set_friend_add_request', {
+      flag: event.flag,
+      approve: true
+    });
+  }
+}
+```
+
+## Group Request
+
+Triggered when someone invites the bot to join a group or requests to join a group the bot manages.
+
+### Fields
+
+<ResponseField name="request_type" type="string" required>
+  Always `"group"`
+</ResponseField>
+
+<ResponseField name="sub_type" type="string" required>
+  - `"add"` - Someone requests to join a group
+  - `"invite"` - Someone invites the bot to join a group
+</ResponseField>
+
+<ResponseField name="group_id" type="number" required>
+  Group number
+</ResponseField>
+
+<ResponseField name="user_id" type="number" required>
+  QQ number of the requester/inviter
+</ResponseField>
+
+<ResponseField name="comment" type="string" required>
+  Request message/comment
+</ResponseField>
+
+<ResponseField name="flag" type="string" required>
+  Request flag for identifying and processing this request
+</ResponseField>
+
+### Example: Group Invite
+
+```json
+{
+  "time": 1709641234,
+  "self_id": 123456789,
+  "post_type": "request",
+  "request_type": "group",
+  "sub_type": "invite",
+  "group_id": 12345678,
+  "user_id": 987654321,
+  "comment": "Please join our group!",
+  "flag": "flag_1234567890"
+}
+```
+
+### Example: Join Request
+
+```json
+{
+  "time": 1709641234,
+  "self_id": 123456789,
+  "post_type": "request",
+  "request_type": "group",
+  "sub_type": "add",
+  "group_id": 12345678,
+  "user_id": 987654321,
+  "comment": "I want to join this group.",
+  "flag": "flag_0987654321"
+}
+```
+
+### Handling Group Requests
+
+To approve or reject a group request, use the `set_group_add_request` action:
+
+```javascript
+if (event.request_type === 'group') {
+  if (event.sub_type === 'invite') {
+    // Handle group invitation
+    const allowedGroups = [12345678, 87654321];  // Whitelist
+    
+    if (allowedGroups.includes(event.group_id)) {
+      // Accept invitation
+      await callAction('set_group_add_request', {
+        flag: event.flag,
+        sub_type: 'invite',
+        approve: true
+      });
+      
+      console.log(`Accepted invitation to group ${event.group_id}`);
+    } else {
+      // Reject invitation
+      await callAction('set_group_add_request', {
+        flag: event.flag,
+        sub_type: 'invite',
+        approve: false,
+        reason: 'Bot is not available for this group'  // Optional
+      });
+    }
+  } else if (event.sub_type === 'add') {
+    // Handle join request (when bot is admin)
+    // Check user qualification
+    const userInfo = await callAction('get_stranger_info', {
+      user_id: event.user_id
+    });
+    
+    // Approve if user has a proper nickname
+    const approve = userInfo.nickname && userInfo.nickname.length > 2;
+    
+    await callAction('set_group_add_request', {
+      flag: event.flag,
+      sub_type: 'add',
+      approve: approve,
+      reason: approve ? '' : 'Please set a proper nickname'
+    });
+  }
+}
+```
+
+## Complete Request Handler
+
+Here's a complete example that handles all request types:
+
+```javascript
+async function handleRequest(event) {
+  if (event.request_type === 'friend') {
+    return handleFriendRequest(event);
+  } else if (event.request_type === 'group') {
+    return handleGroupRequest(event);
+  }
+}
+
+async function handleFriendRequest(event) {
+  console.log(`Friend request from ${event.user_id}: ${event.comment}`);
+  
+  // Implement your approval logic
+  const shouldApprove = checkFriendRequestCriteria(event);
+  
+  await callAction('set_friend_add_request', {
+    flag: event.flag,
+    approve: shouldApprove,
+    remark: shouldApprove ? 'Bot Friend' : ''
+  });
+  
+  console.log(`Friend request ${shouldApprove ? 'approved' : 'rejected'}`);
+}
+
+async function handleGroupRequest(event) {
+  console.log(`Group ${event.sub_type} from ${event.user_id} for group ${event.group_id}`);
+  
+  let shouldApprove = false;
+  
+  if (event.sub_type === 'invite') {
+    // Check if group is in whitelist
+    shouldApprove = await checkGroupWhitelist(event.group_id);
+  } else if (event.sub_type === 'add') {
+    // Check if user meets criteria
+    shouldApprove = await checkUserCriteria(event.user_id, event.comment);
+  }
+  
+  await callAction('set_group_add_request', {
+    flag: event.flag,
+    sub_type: event.sub_type,
+    approve: shouldApprove,
+    reason: shouldApprove ? '' : 'Request denied'
+  });
+  
+  console.log(`Group request ${shouldApprove ? 'approved' : 'rejected'}`);
+}
+
+function checkFriendRequestCriteria(event) {
+  // Example criteria
+  const blacklist = [111111111, 222222222];
+  const spamKeywords = ['spam', 'ad', 'promotion'];
+  
+  // Reject if user is blacklisted
+  if (blacklist.includes(event.user_id)) {
+    return false;
+  }
+  
+  // Reject if comment contains spam
+  const hasSpam = spamKeywords.some(keyword => 
+    event.comment.toLowerCase().includes(keyword)
+  );
+  if (hasSpam) {
+    return false;
+  }
+  
+  // Approve by default
+  return true;
+}
+
+async function checkGroupWhitelist(groupId) {
+  const whitelist = [12345678, 87654321];
+  return whitelist.includes(groupId);
+}
+
+async function checkUserCriteria(userId, comment) {
+  // Get user info
+  try {
+    const userInfo = await callAction('get_stranger_info', { user_id: userId });
+    
+    // Require proper nickname
+    if (!userInfo.nickname || userInfo.nickname.length < 3) {
+      return false;
+    }
+    
+    // Require non-empty comment
+    if (!comment || comment.trim().length === 0) {
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error checking user criteria:', error);
+    return false;
+  }
+}
+```
+
+## Quick Response
+
+When using HTTP POST adapter, you can respond to requests directly by returning a response:
+
+```javascript
+app.post('/event', async (req, res) => {
+  const event = req.body;
+  
+  if (event.post_type === 'request') {
+    if (event.request_type === 'friend') {
+      // Quick approve friend requests
+      res.json({
+        approve: true,
+        remark: 'Bot Friend'
+      });
+    } else if (event.request_type === 'group') {
+      // Quick approve/reject group requests
+      const whitelist = [12345678];
+      res.json({
+        approve: whitelist.includes(event.group_id),
+        reason: 'Auto-processed'
+      });
+    } else {
+      res.status(204).send();
+    }
+  } else {
+    res.status(204).send();
+  }
+});
+```
+
+## Best Practices
+
+### 1. Implement Whitelists and Blacklists
+
+```javascript
+const config = {
+  friendBlacklist: [111111111, 222222222],
+  groupWhitelist: [12345678, 87654321],
+  autoApproveFriends: true,
+  autoApproveGroups: false
+};
+
+function shouldApproveFriend(userId) {
+  if (config.friendBlacklist.includes(userId)) {
+    return false;
+  }
+  return config.autoApproveFriends;
+}
+
+function shouldApproveGroup(groupId) {
+  if (!config.autoApproveGroups) {
+    return config.groupWhitelist.includes(groupId);
+  }
+  return true;
+}
+```
+
+### 2. Log All Requests
+
+```javascript
+function logRequest(event) {
+  const logEntry = {
+    timestamp: new Date(event.time * 1000).toISOString(),
+    type: event.request_type,
+    subType: event.sub_type,
+    userId: event.user_id,
+    groupId: event.group_id,
+    comment: event.comment
+  };
+  
+  console.log('Request received:', JSON.stringify(logEntry));
+  // You can also save to database or file
+}
+```
+
+### 3. Implement Rate Limiting
+
+```javascript
+const requestCount = new Map();
+
+function checkRateLimit(userId) {
+  const now = Date.now();
+  const userRequests = requestCount.get(userId) || [];
+  
+  // Filter requests in the last hour
+  const recentRequests = userRequests.filter(time => now - time < 3600000);
+  
+  // Allow max 3 requests per hour
+  if (recentRequests.length >= 3) {
+    return false;
+  }
+  
+  // Update request count
+  recentRequests.push(now);
+  requestCount.set(userId, recentRequests);
+  
+  return true;
+}
+```
+
+### 4. Send Notification After Approval
+
+```javascript
+async function approveFriendRequest(event) {
+  // Approve the request
+  await callAction('set_friend_add_request', {
+    flag: event.flag,
+    approve: true
+  });
+  
+  // Wait a moment for the friend to be added
+  await sleep(1000);
+  
+  // Send greeting message
+  await callAction('send_private_msg', {
+    user_id: event.user_id,
+    message: 'Hello! Thanks for adding me as a friend.'
+  });
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+```
+
+## Next Steps
+
+- Learn about [Message Events](/api/events/message-events)
+- Explore [Group Actions](/api/onebot/group-actions) to manage group requests
+- Check [User Actions](/api/onebot/user-actions) for friend management
+- Review [Events Overview](/api/events/overview) for the complete event system

@@ -1,0 +1,308 @@
+---
+title: System API
+description: NTQQSystemApi methods for system utilities and helper functions
+---
+
+## Overview
+
+The `NTQQSystemApi` class provides system-level utilities and helper functions for QQ process management, OCR, translation, and other system operations.
+
+## Process Management
+
+### hasOtherRunningQQProcess
+
+Check if another QQ process is running.
+
+```typescript
+async hasOtherRunningQQProcess(): Promise<boolean>
+```
+
+<ResponseField name="return" type="boolean">
+  true if another QQ process is detected, false otherwise
+</ResponseField>
+
+**Example:**
+
+```typescript
+const hasOther = await core.apis.SystemApi.hasOtherRunningQQProcess();
+if (hasOther) {
+  console.log('Warning: Another QQ process is running');
+}
+```
+
+## OCR (Optical Character Recognition)
+
+### ocrImage
+
+Perform OCR on an image to extract text.
+
+```typescript
+async ocrImage(filePath: string)
+```
+
+<ParamField path="filePath" type="string" required>
+  Path to image file to perform OCR on
+</ParamField>
+
+<ResponseField name="return" type="OCRResult">
+  OCR result containing extracted text and position information
+</ResponseField>
+
+**Example:**
+
+```typescript
+const ocrResult = await core.apis.SystemApi.ocrImage('/path/to/image.png');
+
+if (ocrResult.texts) {
+  console.log('Extracted text:');
+  ocrResult.texts.forEach(text => {
+    console.log(`  ${text.content}`);
+  });
+}
+```
+
+## Translation
+
+### translateEnWordToZn
+
+Translate English words to Chinese.
+
+```typescript
+async translateEnWordToZn(words: string[])
+```
+
+<ParamField path="words" type="string[]" required>
+  Array of English words to translate
+</ParamField>
+
+<ResponseField name="return" type="TranslationResult">
+  Translation results for the provided words
+</ResponseField>
+
+**Example:**
+
+```typescript
+const translations = await core.apis.SystemApi.translateEnWordToZn([
+  'hello',
+  'world',
+  'bot'
+]);
+
+translations.forEach((translation, word) => {
+  console.log(`${word} => ${translation}`);
+});
+```
+
+## Online Devices
+
+### getOnlineDev
+
+Get information about online devices.
+
+```typescript
+async getOnlineDev()
+```
+
+<ResponseField name="return" type="OnlineDeviceInfo">
+  Information about currently online devices
+</ResponseField>
+
+**Example:**
+
+```typescript
+const devices = await core.apis.SystemApi.getOnlineDev();
+console.log('Online devices:', devices);
+```
+
+## Collections
+
+### getArkJsonCollection
+
+Get Ark JSON collection data.
+
+```typescript
+async getArkJsonCollection()
+```
+
+<ResponseField name="return" type="any">
+  Ark JSON collection data
+</ResponseField>
+
+**Example:**
+
+```typescript
+const collection = await core.apis.SystemApi.getArkJsonCollection();
+console.log('Collection data:', collection);
+```
+
+## Mini Apps
+
+### bootMiniApp
+
+Boot/launch a mini application.
+
+```typescript
+async bootMiniApp(appFile: string, params: string)
+```
+
+<ParamField path="appFile" type="string" required>
+  Path to mini app file
+</ParamField>
+
+<ParamField path="params" type="string" required>
+  Parameters to pass to the mini app
+</ParamField>
+
+**Example:**
+
+```typescript
+await core.apis.SystemApi.bootMiniApp(
+  '/path/to/miniapp.js',
+  JSON.stringify({ mode: 'production' })
+);
+```
+
+## Complete Example
+
+Here's a comprehensive example using various system utilities:
+
+```typescript
+import { NapCatCore } from '@/napcat-core';
+import path from 'path';
+
+async function systemUtilities(core: NapCatCore) {
+  // Check for other QQ processes
+  console.log('Checking for other QQ processes...');
+  const hasOther = await core.apis.SystemApi.hasOtherRunningQQProcess();
+  if (hasOther) {
+    console.log('⚠️  Another QQ process detected!');
+  } else {
+    console.log('✓ No other QQ processes');
+  }
+  
+  // Perform OCR on an image
+  console.log('\nPerforming OCR on image...');
+  try {
+    const imagePath = '/path/to/screenshot.png';
+    const ocrResult = await core.apis.SystemApi.ocrImage(imagePath);
+    
+    if (ocrResult.texts && ocrResult.texts.length > 0) {
+      console.log('Extracted text:');
+      ocrResult.texts.forEach((text, index) => {
+        console.log(`  ${index + 1}. "${text.content}"`);
+        console.log(`     Position: (${text.box[0]}, ${text.box[1]})`);
+      });
+    } else {
+      console.log('No text found in image');
+    }
+  } catch (error) {
+    console.error('OCR failed:', error);
+  }
+  
+  // Translate words
+  console.log('\nTranslating English words...');
+  try {
+    const wordsToTranslate = ['hello', 'goodbye', 'friend', 'message'];
+    const translations = await core.apis.SystemApi.translateEnWordToZn(
+      wordsToTranslate
+    );
+    
+    console.log('Translations:');
+    wordsToTranslate.forEach((word, index) => {
+      const translation = translations[index];
+      console.log(`  ${word} => ${translation}`);
+    });
+  } catch (error) {
+    console.error('Translation failed:', error);
+  }
+  
+  // Get online devices
+  console.log('\nChecking online devices...');
+  try {
+    await core.apis.SystemApi.getOnlineDev();
+    console.log('Device check completed');
+  } catch (error) {
+    console.error('Failed to get devices:', error);
+  }
+  
+  // Get Ark collection
+  console.log('\nFetching Ark collection...');
+  try {
+    const collection = await core.apis.SystemApi.getArkJsonCollection();
+    console.log('Collection fetched successfully');
+    console.log('Collection data:', JSON.stringify(collection, null, 2));
+  } catch (error) {
+    console.error('Failed to fetch collection:', error);
+  }
+}
+
+// Usage
+systemUtilities(core).catch(console.error);
+```
+
+## OCR Use Case Example
+
+Here's a practical example of using OCR to extract text from images in messages:
+
+```typescript
+import { NapCatCore } from '@/napcat-core';
+import { ElementType } from '@/napcat-core/types';
+
+async function processImageMessages(core: NapCatCore, peer: Peer) {
+  // Get recent messages
+  const history = await core.apis.MsgApi.getMsgHistory(peer, '0', 20);
+  
+  // Filter messages with images
+  const imageMessages = history.msgList.filter(msg =>
+    msg.elements.some(e => e.elementType === ElementType.PIC)
+  );
+  
+  console.log(`Found ${imageMessages.length} messages with images`);
+  
+  // Process each image
+  for (const msg of imageMessages) {
+    const picElements = msg.elements.filter(e => e.picElement);
+    
+    for (const element of picElements) {
+      if (!element.picElement?.sourcePath) continue;
+      
+      try {
+        // Perform OCR
+        const ocrResult = await core.apis.SystemApi.ocrImage(
+          element.picElement.sourcePath
+        );
+        
+        if (ocrResult.texts && ocrResult.texts.length > 0) {
+          console.log(`\nMessage ${msg.msgId}:`);
+          console.log('Extracted text:');
+          ocrResult.texts.forEach(text => {
+            console.log(`  - ${text.content}`);
+          });
+          
+          // If text contains specific keywords, take action
+          const fullText = ocrResult.texts
+            .map(t => t.content)
+            .join(' ');
+          
+          if (fullText.includes('help')) {
+            // Respond to help request
+            await core.apis.MsgApi.sendMsg(peer, [{
+              textElement: { content: 'How can I help you?' }
+            }]);
+          }
+        }
+      } catch (error) {
+        console.error('OCR failed for message:', msg.msgId, error);
+      }
+    }
+  }
+}
+```
+
+## Notes
+
+- OCR functionality requires Windows platform and may not be available on all systems
+- OCR accuracy depends on image quality and text clarity
+- Translation services may have rate limits or require network connectivity
+- Some system utilities may require specific permissions or system configurations
+- Process detection is useful for preventing multiple bot instances

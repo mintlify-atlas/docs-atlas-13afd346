@@ -1,0 +1,149 @@
+---
+title: NapCat Core Configuration
+description: Configure NapCat core settings including logging, packet backend, and security options
+---
+
+## Overview
+
+The NapCat core configuration file (`napcat.json`) controls fundamental bot behavior including logging, time synchronization, and security bypass options.
+
+## Configuration File Location
+
+The configuration file should be placed in your NapCat config directory:
+
+```
+config/napcat.json
+```
+
+## Configuration Schema
+
+### Logging Options
+
+<ParamField path="fileLog" type="boolean" default={false}>
+  Enable file-based logging. When enabled, logs will be written to files in the logs directory.
+</ParamField>
+
+<ParamField path="consoleLog" type="boolean" default={true}>
+  Enable console logging. Outputs log messages to the console/terminal.
+</ParamField>
+
+<ParamField path="fileLogLevel" type="string" default="debug">
+  Set the log level for file output. Available levels: `debug`, `info`, `warn`, `error`.
+</ParamField>
+
+<ParamField path="consoleLogLevel" type="string" default="info">
+  Set the log level for console output. Available levels: `debug`, `info`, `warn`, `error`.
+</ParamField>
+
+### Packet Backend Settings
+
+<ParamField path="packetBackend" type="string" default="auto">
+  Specify the packet backend to use. Set to `auto` for automatic selection, or specify a custom backend.
+</ParamField>
+
+<ParamField path="packetServer" type="string" default="">
+  URL of the packet server. Leave empty to use default settings.
+</ParamField>
+
+### Advanced Options
+
+<ParamField path="o3HookMode" type="number" default={0}>
+  O3 hook mode configuration. Controls how NapCat hooks into NTQQ's message handling.
+  - `0`: Default mode
+  - Other values: Advanced hook modes (use with caution)
+</ParamField>
+
+<ParamField path="autoTimeSync" type="boolean" default={true}>
+  Automatically synchronize time with the server. Helps prevent authentication issues due to clock drift.
+</ParamField>
+
+### Security Bypass Options
+
+<ParamField path="bypass" type="object">
+  Configure which security checks to bypass. This is an advanced feature that should be used carefully.
+  
+  <Expandable title="Bypass Options">
+    <ParamField path="bypass.hook" type="boolean" default={true}>
+      Bypass hook detection mechanisms.
+    </ParamField>
+    
+    <ParamField path="bypass.window" type="boolean" default={true}>
+      Bypass window detection checks.
+    </ParamField>
+    
+    <ParamField path="bypass.module" type="boolean" default={true}>
+      Bypass module loading detection.
+    </ParamField>
+    
+    <ParamField path="bypass.process" type="boolean" default={true}>
+      Bypass process detection checks.
+    </ParamField>
+    
+    <ParamField path="bypass.container" type="boolean" default={true}>
+      Bypass container detection (Docker, etc.).
+    </ParamField>
+    
+    <ParamField path="bypass.js" type="boolean" default={true}>
+      Bypass JavaScript environment detection.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Configuration Examples
+
+<CodeGroup>
+```json Basic Configuration
+{
+  "fileLog": true,
+  "consoleLog": true,
+  "fileLogLevel": "info",
+  "consoleLogLevel": "info",
+  "autoTimeSync": true
+}
+```
+
+```json Debug Configuration
+{
+  "fileLog": true,
+  "consoleLog": true,
+  "fileLogLevel": "debug",
+  "consoleLogLevel": "debug",
+  "packetBackend": "auto",
+  "packetServer": "",
+  "o3HookMode": 0,
+  "autoTimeSync": true
+}
+```
+
+```json Production Configuration
+{
+  "fileLog": true,
+  "consoleLog": false,
+  "fileLogLevel": "warn",
+  "consoleLogLevel": "error",
+  "autoTimeSync": true,
+  "bypass": {
+    "hook": true,
+    "window": true,
+    "module": true,
+    "process": true,
+    "container": true,
+    "js": true
+  }
+}
+```
+
+```json Minimal Configuration
+{
+  "consoleLog": true,
+  "autoTimeSync": true
+}
+```
+</CodeGroup>
+
+## Notes
+
+- All configuration fields are optional and will use their default values if not specified
+- The configuration is validated using JSON5 format, so you can include comments
+- Changes to most settings require a restart of NapCat to take effect
+- Debug log levels can generate large log files quickly; use them sparingly in production

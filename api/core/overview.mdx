@@ -1,0 +1,114 @@
+---
+title: Core API Overview
+description: Introduction to NapCat's Core APIs for QQ bot development
+---
+
+## Introduction
+
+NapCat Core APIs provide a comprehensive interface to interact with NTQQ services. These APIs are accessed through `NapCatCore.apis` and wrap the underlying StableNTApiWrapper interface.
+
+## API Structure
+
+All Core APIs follow a consistent structure:
+
+- Each API class receives `InstanceContext` and `NapCatCore` in its constructor
+- Methods are async and return Promises
+- APIs interact with NTQQ services through the context session
+
+## Available APIs
+
+NapCat Core includes the following API modules:
+
+<CardGroup cols={2}>
+  <Card title="Message API" icon="message" href="./message">
+    Send, receive, and manage QQ messages
+  </Card>
+  
+  <Card title="Group API" icon="users" href="./group">
+    Manage groups, members, and group settings
+  </Card>
+  
+  <Card title="Friend API" icon="user-plus" href="./friend">
+    Handle friend lists and friend requests
+  </Card>
+  
+  <Card title="User API" icon="user" href="./user">
+    Get user information and profiles
+  </Card>
+  
+  <Card title="File API" icon="file" href="./file">
+    Upload, download, and manage files
+  </Card>
+  
+  <Card title="System API" icon="gear" href="./system">
+    System utilities and helper functions
+  </Card>
+</CardGroup>
+
+## Core Concepts
+
+### Peer Object
+
+Many APIs use a `Peer` object to identify chat targets:
+
+```typescript
+interface Peer {
+  chatType: ChatType;
+  peerUid: string;
+  guildId?: string;
+}
+```
+
+### Event Wrapper
+
+APIs use `eventWrapper.callNormalEventV2` for event-driven operations:
+
+```typescript
+const [, result] = await this.core.eventWrapper.callNormalEventV2(
+  'ServiceMethod',
+  'ListenerMethod',
+  [params],
+  (ret) => ret.result === 0,
+  (data) => validationFunction(data),
+  retryCount,
+  timeout
+);
+```
+
+## Basic Usage
+
+```typescript
+import { NapCatCore } from '@/napcat-core';
+
+// Access APIs through core instance
+const core = new NapCatCore(context);
+
+// Send a message
+const msg = await core.apis.MsgApi.sendMsg(peer, elements);
+
+// Get group info
+const group = await core.apis.GroupApi.fetchGroupDetail(groupCode);
+
+// Get friend list
+const friends = await core.apis.FriendApi.getBuddy();
+```
+
+## Error Handling
+
+All API methods may throw errors. Always wrap calls in try-catch:
+
+```typescript
+try {
+  const result = await core.apis.MsgApi.sendMsg(peer, elements);
+} catch (error) {
+  console.error('Failed to send message:', error);
+}
+```
+
+## TypeScript Support
+
+All APIs are fully typed with TypeScript interfaces. Import types from `@/napcat-core/types`:
+
+```typescript
+import { Peer, RawMessage, SendMessageElement } from '@/napcat-core/types';
+```

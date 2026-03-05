@@ -1,0 +1,418 @@
+---
+title: Network Adapters
+description: Configure HTTP, WebSocket, and reverse connection adapters for OneBot 11 protocol
+---
+
+## Overview
+
+NapCat supports multiple network adapter types for flexible integration with your applications. You can configure servers (where your app connects to NapCat) or clients (where NapCat connects to your app).
+
+## Adapter Types
+
+### HTTP Server
+
+HTTP server adapter that receives OneBot 11 API requests via HTTP POST.
+
+<ParamField path="name" type="string" default="http-server" required>
+  Unique identifier for this adapter instance.
+</ParamField>
+
+<ParamField path="enable" type="boolean" default={false} required>
+  Enable or disable this adapter.
+</ParamField>
+
+<ParamField path="port" type="number" default={3000}>
+  Port number to listen on.
+</ParamField>
+
+<ParamField path="host" type="string" default="127.0.0.1">
+  Host address to bind to. Use `0.0.0.0` to listen on all interfaces.
+</ParamField>
+
+<ParamField path="enableCors" type="boolean" default={true}>
+  Enable Cross-Origin Resource Sharing (CORS) for web-based clients.
+</ParamField>
+
+<ParamField path="enableWebsocket" type="boolean" default={false}>
+  Enable WebSocket upgrade support on this HTTP server.
+</ParamField>
+
+<ParamField path="messagePostFormat" type="string" default="array">
+  Message format: `array` (CQ code format) or `string`.
+</ParamField>
+
+<ParamField path="token" type="string" default="">
+  Authentication token. Clients must include this in the `Authorization` header or `access_token` query parameter.
+</ParamField>
+
+<ParamField path="debug" type="boolean" default={false}>
+  Enable debug logging for this adapter.
+</ParamField>
+
+### HTTP SSE Server
+
+HTTP Server-Sent Events adapter for real-time event streaming.
+
+<ParamField path="name" type="string" default="http-sse-server" required>
+  Unique identifier for this adapter instance.
+</ParamField>
+
+<ParamField path="enable" type="boolean" default={false} required>
+  Enable or disable this adapter.
+</ParamField>
+
+<ParamField path="port" type="number" default={3000}>
+  Port number to listen on.
+</ParamField>
+
+<ParamField path="host" type="string" default="127.0.0.1">
+  Host address to bind to.
+</ParamField>
+
+<ParamField path="enableCors" type="boolean" default={true}>
+  Enable CORS support.
+</ParamField>
+
+<ParamField path="messagePostFormat" type="string" default="array">
+  Message format: `array` or `string`.
+</ParamField>
+
+<ParamField path="token" type="string" default="">
+  Authentication token.
+</ParamField>
+
+<ParamField path="reportSelfMessage" type="boolean" default={false}>
+  Report messages sent by the bot itself.
+</ParamField>
+
+<ParamField path="debug" type="boolean" default={false}>
+  Enable debug logging.
+</ParamField>
+
+### WebSocket Server
+
+WebSocket server adapter for bidirectional real-time communication.
+
+<ParamField path="name" type="string" default="websocket-server" required>
+  Unique identifier for this adapter instance.
+</ParamField>
+
+<ParamField path="enable" type="boolean" default={false} required>
+  Enable or disable this adapter.
+</ParamField>
+
+<ParamField path="host" type="string" default="127.0.0.1">
+  Host address to bind to.
+</ParamField>
+
+<ParamField path="port" type="number" default={3001}>
+  Port number to listen on.
+</ParamField>
+
+<ParamField path="messagePostFormat" type="string" default="array">
+  Message format: `array` or `string`.
+</ParamField>
+
+<ParamField path="reportSelfMessage" type="boolean" default={false}>
+  Report messages sent by the bot itself.
+</ParamField>
+
+<ParamField path="token" type="string" default="">
+  Authentication token.
+</ParamField>
+
+<ParamField path="enableForcePushEvent" type="boolean" default={true}>
+  Force push events even if the client is not ready.
+</ParamField>
+
+<ParamField path="debug" type="boolean" default={false}>
+  Enable debug logging.
+</ParamField>
+
+<ParamField path="heartInterval" type="number" default={30000}>
+  Heartbeat interval in milliseconds.
+</ParamField>
+
+### HTTP Client (Reverse Connection)
+
+HTTP client adapter that posts events to your server.
+
+<ParamField path="name" type="string" default="http-client" required>
+  Unique identifier for this adapter instance.
+</ParamField>
+
+<ParamField path="enable" type="boolean" default={false} required>
+  Enable or disable this adapter.
+</ParamField>
+
+<ParamField path="url" type="string" default="http://localhost:8080" required>
+  Target URL where events will be posted.
+</ParamField>
+
+<ParamField path="messagePostFormat" type="string" default="array">
+  Message format: `array` or `string`.
+</ParamField>
+
+<ParamField path="reportSelfMessage" type="boolean" default={false}>
+  Report messages sent by the bot itself.
+</ParamField>
+
+<ParamField path="token" type="string" default="">
+  Authentication token sent in the `Authorization` header.
+</ParamField>
+
+<ParamField path="debug" type="boolean" default={false}>
+  Enable debug logging.
+</ParamField>
+
+### WebSocket Client (Reverse Connection)
+
+WebSocket client adapter that connects to your WebSocket server.
+
+<ParamField path="name" type="string" default="websocket-client" required>
+  Unique identifier for this adapter instance.
+</ParamField>
+
+<ParamField path="enable" type="boolean" default={false} required>
+  Enable or disable this adapter.
+</ParamField>
+
+<ParamField path="url" type="string" default="ws://localhost:8082" required>
+  Target WebSocket URL to connect to.
+</ParamField>
+
+<ParamField path="messagePostFormat" type="string" default="array">
+  Message format: `array` or `string`.
+</ParamField>
+
+<ParamField path="reportSelfMessage" type="boolean" default={false}>
+  Report messages sent by the bot itself.
+</ParamField>
+
+<ParamField path="reconnectInterval" type="number" default={5000}>
+  Reconnection interval in milliseconds when connection is lost.
+</ParamField>
+
+<ParamField path="token" type="string" default="">
+  Authentication token.
+</ParamField>
+
+<ParamField path="debug" type="boolean" default={false}>
+  Enable debug logging.
+</ParamField>
+
+<ParamField path="heartInterval" type="number" default={30000}>
+  Heartbeat interval in milliseconds.
+</ParamField>
+
+### Plugin Adapter
+
+Plugin adapter for custom integrations and extensions.
+
+<ParamField path="name" type="string" default="plugin" required>
+  Unique identifier for this plugin adapter.
+</ParamField>
+
+<ParamField path="enable" type="boolean" default={false} required>
+  Enable or disable this adapter.
+</ParamField>
+
+<ParamField path="messagePostFormat" type="string" default="array">
+  Message format: `array` or `string`.
+</ParamField>
+
+<ParamField path="reportSelfMessage" type="boolean" default={false}>
+  Report messages sent by the bot itself.
+</ParamField>
+
+<ParamField path="debug" type="boolean" default={false}>
+  Enable debug logging.
+</ParamField>
+
+## Configuration Examples
+
+<CodeGroup>
+```json HTTP Server
+{
+  "network": {
+    "httpServers": [
+      {
+        "name": "main-http",
+        "enable": true,
+        "port": 3000,
+        "host": "127.0.0.1",
+        "enableCors": true,
+        "enableWebsocket": false,
+        "messagePostFormat": "array",
+        "token": "your-secret-token",
+        "debug": false
+      }
+    ]
+  }
+}
+```
+
+```json WebSocket Server
+{
+  "network": {
+    "websocketServers": [
+      {
+        "name": "main-ws",
+        "enable": true,
+        "host": "127.0.0.1",
+        "port": 3001,
+        "messagePostFormat": "array",
+        "reportSelfMessage": false,
+        "token": "your-secret-token",
+        "enableForcePushEvent": true,
+        "debug": false,
+        "heartInterval": 30000
+      }
+    ]
+  }
+}
+```
+
+```json HTTP Client (Reverse)
+{
+  "network": {
+    "httpClients": [
+      {
+        "name": "reverse-http",
+        "enable": true,
+        "url": "http://your-app.com:8080",
+        "messagePostFormat": "array",
+        "reportSelfMessage": false,
+        "token": "your-token",
+        "debug": false
+      }
+    ]
+  }
+}
+```
+
+```json WebSocket Client (Reverse)
+{
+  "network": {
+    "websocketClients": [
+      {
+        "name": "reverse-ws",
+        "enable": true,
+        "url": "ws://your-app.com:8082",
+        "messagePostFormat": "array",
+        "reportSelfMessage": false,
+        "reconnectInterval": 5000,
+        "token": "your-token",
+        "debug": false,
+        "heartInterval": 30000
+      }
+    ]
+  }
+}
+```
+
+```json Multiple Adapters
+{
+  "network": {
+    "httpServers": [
+      {
+        "name": "public-api",
+        "enable": true,
+        "port": 3000,
+        "host": "0.0.0.0",
+        "token": "public-token"
+      }
+    ],
+    "websocketServers": [
+      {
+        "name": "realtime-ws",
+        "enable": true,
+        "port": 3001,
+        "host": "127.0.0.1",
+        "token": "ws-token"
+      }
+    ],
+    "httpClients": [
+      {
+        "name": "event-receiver",
+        "enable": true,
+        "url": "http://events.example.com/webhook",
+        "token": "webhook-token"
+      }
+    ]
+  }
+}
+```
+</CodeGroup>
+
+## Authentication
+
+All adapters support token-based authentication:
+
+**For Server Adapters (HTTP/WebSocket Servers):**
+- Include token in `Authorization` header: `Authorization: Bearer your-token`
+- Or include as query parameter: `?access_token=your-token`
+
+**For Client Adapters (HTTP/WebSocket Clients):**
+- NapCat includes the token in the `Authorization` header when connecting to your server
+
+## Common Use Cases
+
+### Single Application
+
+Use HTTP or WebSocket server:
+
+```json
+{
+  "network": {
+    "httpServers": [
+      {
+        "name": "api",
+        "enable": true,
+        "port": 3000
+      }
+    ]
+  }
+}
+```
+
+### Multiple Applications
+
+Enable multiple adapters:
+
+```json
+{
+  "network": {
+    "httpServers": [
+      { "name": "app1", "enable": true, "port": 3000 },
+      { "name": "app2", "enable": true, "port": 3001 }
+    ]
+  }
+}
+```
+
+### Reverse Connection (NAT/Firewall)
+
+Use client adapters when NapCat can't accept incoming connections:
+
+```json
+{
+  "network": {
+    "websocketClients": [
+      {
+        "name": "reverse",
+        "enable": true,
+        "url": "ws://your-server.com:8080"
+      }
+    ]
+  }
+}
+```
+
+## Notes
+
+- Each adapter can be individually enabled/disabled
+- Multiple adapters of the same type can run simultaneously
+- Adapter names must be unique across all adapter types
+- Debug mode increases log verbosity for troubleshooting
+- Heart interval controls keep-alive ping frequency for WebSocket connections

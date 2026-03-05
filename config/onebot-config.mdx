@@ -1,0 +1,189 @@
+---
+title: OneBot Configuration
+description: Configure OneBot 11 protocol settings including message format and additional features
+---
+
+## Overview
+
+The OneBot configuration file (`onebot.json`) manages OneBot 11 protocol settings, including network adapters, message formatting, and additional features like music signing and file URL conversion.
+
+## Configuration File Location
+
+```
+config/onebot.json
+```
+
+## Configuration Schema
+
+### Network Configuration
+
+<ParamField path="network" type="object" required>
+  Network adapter configuration. Contains arrays of different adapter types (HTTP servers, WebSocket servers, clients, etc.).
+  
+  See the [Network Adapters](/config/network-adapters) page for detailed configuration of each adapter type.
+</ParamField>
+
+### Message Format Settings
+
+<ParamField path="network.*.messagePostFormat" type="string" default="array">
+  Format for posting messages. Available in each network adapter configuration.
+  - `array`: Message segments as an array of objects (CQ code format)
+  - `string`: Message as a plain string
+</ParamField>
+
+<ParamField path="network.*.reportSelfMessage" type="boolean" default={false}>
+  Whether to report messages sent by the bot itself. Available in most network adapters.
+</ParamField>
+
+### Music Signing
+
+<ParamField path="musicSignUrl" type="string" default="">
+  URL for music card signing service. Required for sending music cards (QQ music, NetEase music, etc.).
+  
+  Example: `https://your-signing-service.com/sign`
+</ParamField>
+
+### File and Media Options
+
+<ParamField path="enableLocalFile2Url" type="boolean" default={false}>
+  Convert local file paths to URLs automatically. Useful when your bot needs to serve files over HTTP.
+</ParamField>
+
+<ParamField path="imageDownloadProxy" type="string" default="">
+  HTTP proxy for downloading images. Format: `http://proxy-host:port`
+  
+  Useful in restricted network environments or to avoid rate limiting.
+</ParamField>
+
+### Message Parsing
+
+<ParamField path="parseMultMsg" type="boolean" default={false}>
+  Parse forwarded/merged messages (multi-message nodes) into individual messages.
+  
+  When enabled, composite messages will be expanded into their constituent parts.
+</ParamField>
+
+## Configuration Examples
+
+<CodeGroup>
+```json Basic Configuration
+{
+  "network": {
+    "httpServers": [
+      {
+        "name": "http-server",
+        "enable": true,
+        "port": 3000,
+        "host": "127.0.0.1",
+        "messagePostFormat": "array",
+        "token": "your-secret-token"
+      }
+    ],
+    "websocketServers": [],
+    "httpClients": [],
+    "websocketClients": [],
+    "httpSseServers": [],
+    "plugins": []
+  },
+  "musicSignUrl": "",
+  "enableLocalFile2Url": false,
+  "parseMultMsg": false,
+  "imageDownloadProxy": ""
+}
+```
+
+```json Advanced Configuration
+{
+  "network": {
+    "httpServers": [
+      {
+        "name": "main-http",
+        "enable": true,
+        "port": 3000,
+        "host": "0.0.0.0",
+        "enableCors": true,
+        "messagePostFormat": "array",
+        "token": "secure-token-here",
+        "debug": false
+      }
+    ],
+    "websocketServers": [
+      {
+        "name": "main-ws",
+        "enable": true,
+        "host": "127.0.0.1",
+        "port": 3001,
+        "messagePostFormat": "array",
+        "reportSelfMessage": false,
+        "token": "secure-token-here",
+        "heartInterval": 30000
+      }
+    ],
+    "httpClients": [],
+    "websocketClients": [],
+    "httpSseServers": [],
+    "plugins": []
+  },
+  "musicSignUrl": "https://example.com/sign",
+  "enableLocalFile2Url": true,
+  "parseMultMsg": true,
+  "imageDownloadProxy": "http://proxy.example.com:8080"
+}
+```
+
+```json Reverse Connection Configuration
+{
+  "network": {
+    "httpServers": [],
+    "websocketServers": [],
+    "httpClients": [
+      {
+        "name": "reverse-http",
+        "enable": true,
+        "url": "http://your-app.com:8080",
+        "messagePostFormat": "array",
+        "reportSelfMessage": false,
+        "token": "your-token"
+      }
+    ],
+    "websocketClients": [
+      {
+        "name": "reverse-ws",
+        "enable": true,
+        "url": "ws://your-app.com:8082",
+        "messagePostFormat": "array",
+        "reconnectInterval": 5000,
+        "token": "your-token"
+      }
+    ],
+    "httpSseServers": [],
+    "plugins": []
+  },
+  "musicSignUrl": "",
+  "enableLocalFile2Url": false,
+  "parseMultMsg": false,
+  "imageDownloadProxy": ""
+}
+```
+</CodeGroup>
+
+## Network Adapter Types
+
+The `network` object contains arrays for different adapter types:
+
+- **httpServers**: HTTP server adapters (receive requests)
+- **httpSseServers**: HTTP SSE server adapters (server-sent events)
+- **websocketServers**: WebSocket server adapters (bidirectional)
+- **httpClients**: HTTP client adapters (reverse connections, POST events)
+- **websocketClients**: WebSocket client adapters (reverse connections)
+- **plugins**: Plugin adapters for custom integrations
+
+Each array can contain multiple adapter configurations. See the [Network Adapters](/config/network-adapters) page for detailed information on each type.
+
+## Notes
+
+- You can enable multiple network adapters simultaneously
+- Each network adapter must have a unique `name` field
+- Token authentication is optional but strongly recommended for production use
+- The configuration file is validated and merged with default values on startup
+- Message format affects how your application receives and parses messages

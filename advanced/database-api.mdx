@@ -1,0 +1,511 @@
+---
+title: Database API
+description: Access and query NTQQ's encrypted SQLite databases directly
+icon: database
+---
+
+## Overview
+
+The `NTQQDatabaseApi` provides direct access to NTQQ's encrypted SQLite databases, allowing you to read message history, user data, and other information stored locally by the QQ client.
+
+<Warning>
+**Critical Requirements:**
+- Requires `node:sqlite` (Node.js 22.5.0+)
+- Needs database passphrase (auto-captured by NapCat on login)
+- Databases are encrypted with SQLCipher format
+- Read-only recommended to avoid data corruption
+</Warning>
+
+## Architecture
+
+Implemented in `packages/napcat-core/apis/database.ts:19`, the API handles:
+
+- Database decryption using captured passphrase
+- SQLite connection management
+- Query execution and result parsing
+- Automatic cleanup and caching
+
+### Database Passphrase
+
+NapCat automatically captures the database encryption key when QQ logs in. Check availability:
+
+```typescript
+const dbApi = core.apis.DatabaseApi;
+
+if (!dbApi.hasPassphrase()) {
+  console.log('Database passphrase not available yet');
+  return;
+}
+
+const passphrase = dbApi.getPassphraseBuffer(); // Buffer | null
+```
+
+## Database Locations
+
+### NT Database Directory
+
+QQ databases are stored in the user's profile:
+
+```typescript
+const ntDbDir = dbApi.getNtDbDir();
+// Returns: <DataPath>/<UIN>/nt_qq/nt_db/
+
+console.log('DB Directory:', ntDbDir);
+// Example: /home/user/.config/QQ/123456789/nt_qq/nt_db/
+```
+
+### Cache Directory
+
+Decrypted databases are cached for performance:
+
+```typescript
+const cacheDir = dbApi.getDefaultCacheDir();
+// Returns: <NapCatDataPath>/db_<uin>/
+
+// Or specify custom cache directory
+const customCache = dbApi.getDefaultCacheDir('/tmp/my-cache');
+```
+
+## Common Databases
+
+Main NTQQ databases:
+
+- `nt_msg.db` - Message history and chat data
+- `nt_data.db` - User and group information
+- `nt_group_data.db` - Group member data
+- `global-config.db` - Client configuration
+- `config.db` - Additional settings
+
+## Simple Queries
+
+### Quick Query (Auto-Close)
+
+For one-off queries, use the convenience methods:
+
+```typescript
+// Query multiple rows
+const messages = dbApi.query<{
+  MsgId: string;
+  msgSeq: string;
+  msgTime: string;
+  senderUin: string;
+  sendNickName: string;
+  elements: string;
+}>(
+  'nt_msg.db',
+  'SELECT * FROM msg_table WHERE chatType = ? ORDER BY msgTime DESC LIMIT ?',
+  [2, 100] // Parameters: chatType=2 (group), limit=100
+);
+
+if (messages) {
+  console.log(`Found ${messages.length} messages`);
+  messages.forEach(msg => {
+    console.log(`[${msg.sendNickName}] ${msg.msgTime}`);
+  });
+}
+```
+
+### Query Single Row
+
+```typescript
+// Get one result
+const latestMsg = dbApi.queryOne<{
+  MsgId: string;
+  msgTime: string;
+  senderUin: string;
+}>(
+  'nt_msg.db',
+  'SELECT MsgId, msgTime, senderUin FROM msg_table ORDER BY msgTime DESC LIMIT 1'
+);
+
+if (latestMsg) {
+  console.log('Latest message:', latestMsg.MsgId);
+}
+```
+
+### Execute Non-Query SQL
+
+```typescript
+// INSERT, UPDATE, DELETE
+const result = dbApi.execute(
+  'nt_data.db',
+  'UPDATE settings SET value = ? WHERE key = ?',
+  ['new_value', 'some_key']
+);
+
+if (result) {
+  console.log('Rows affected:', result.changes);
+  console.log('Last insert ID:', result.lastInsertRowid);
+}
+```
+
+<Warning>
+Modifying databases can corrupt your QQ data. Always backup before using `execute()` for writes.
+</Warning>
+
+## Advanced Database Access
+
+### Manual Connection Management
+
+For multiple queries, keep the connection open:
+
+```typescript
+import { DatabaseHandle } from '@napcat/core';
+
+// Open database connection
+const db = dbApi.openDatabase('nt_msg.db', true); // true = read-only
+
+if (!db) {
+  console.error('Failed to open database');
+  return;
+}
+
+try {
+  // Execute multiple queries
+  const groups = db.query('SELECT DISTINCT peerUid FROM msg_table WHERE chatType = 2');
+  
+  for (const group of groups) {
+    const count = db.queryOne<{ count: number }>(
+      'SELECT COUNT(*) as count FROM msg_table WHERE peerUid = ?',
+      [group.peerUid]
+    );
+    console.log(`Group ${group.peerUid}: ${count?.count} messages`);
+  }
+} finally {
+  // Always close connection
+  db.close();
+}
+```
+
+### DatabaseHandle Methods
+
+The `DatabaseHandle` class (from `napcat-database` package) provides:
+
+```typescript
+interface DatabaseHandle {
+  // Query multiple rows
+  query<T>(sql: string, params?: SQLInputValue[]): T[];
+  
+  // Query single row
+  queryOne<T>(sql: string, params?: SQLInputValue[]): T | undefined;
+  
+  // Execute non-query
+  execute(sql: string, params?: SQLInputValue[]): {
+    changes: number | bigint;
+    lastInsertRowid: number | bigint;
+  };
+  
+  // Close connection
+  close(): void;
+}
+```
+
+### Working with Already-Decrypted Databases
+
+If you have a decrypted `.db` file:
+
+```typescript
+const db = dbApi.openDecryptedDb('/path/to/decrypted.db', true);
+
+try {
+  const rows = db.query('SELECT * FROM some_table');
+  console.log(rows);
+} finally {
+  db.close();
+}
+```
+
+## Database Scanning
+
+### Read Single Database Schema
+
+Get table structure and statistics:
+
+```typescript
+const dbInfo = dbApi.readDatabase('nt_msg.db');
+
+if (dbInfo) {
+  console.log('Database:', dbInfo.dbName);
+  console.log('File size:', dbInfo.fileSize, 'bytes');
+  console.log('Tables:', dbInfo.tables.length);
+  
+  dbInfo.tables.forEach(table => {
+    console.log(`\nTable: ${table.name}`);
+    console.log(`Rows: ${table.rowCount}`);
+    console.log('Columns:', table.columns.map(c => `${c.name} (${c.type})`).join(', '));
+  });
+}
+```
+
+### Scan All Databases
+
+Get info for all databases in nt_db directory:
+
+```typescript
+const allDatabases = dbApi.scanDatabases();
+
+for (const db of allDatabases) {
+  console.log(`\n=== ${db.dbName} ===`);
+  console.log(`Size: ${(db.fileSize / 1024 / 1024).toFixed(2)} MB`);
+  console.log(`Tables: ${db.tables.length}`);
+}
+
+// Format as readable string
+const report = dbApi.formatResults(allDatabases);
+console.log(report);
+```
+
+### TableInfo Structure
+
+```typescript
+interface TableInfo {
+  name: string;
+  rowCount: number;
+  columns: {
+    cid: number;
+    name: string;
+    type: string;
+    notnull: number;
+    dflt_value: any;
+    pk: number;
+  }[];
+}
+
+interface DatabaseScanResult {
+  dbName: string;
+  dbPath: string;
+  fileSize: number;
+  tables: TableInfo[];
+  error?: string;
+}
+```
+
+## Decrypting Databases
+
+### Decrypt for External Use
+
+Create a decrypted copy without reading schema:
+
+```typescript
+const outputPath = dbApi.decryptDatabase('nt_msg.db', '/tmp/nt_msg_decrypted.db');
+
+if (outputPath) {
+  console.log('Decrypted database saved to:', outputPath);
+  // Now you can use any SQLite tool to read it
+} else {
+  console.error('Decryption failed (passphrase not available?)');
+}
+```
+
+### Default Output Location
+
+If you don't specify output path:
+
+```typescript
+const outputPath = dbApi.decryptDatabase('nt_msg.db');
+// Saves to: <NapCatDataPath>/db_<uin>/nt_msg.db
+```
+
+## Practical Examples
+
+### Get Recent Messages
+
+```typescript
+interface Message {
+  MsgId: string;
+  msgSeq: string;
+  msgTime: string;
+  senderUin: string;
+  sendNickName: string;
+  elements: string; // JSON string
+  peerUid: string;
+  chatType: number;
+}
+
+const recentMessages = dbApi.query<Message>(
+  'nt_msg.db',
+  `SELECT MsgId, msgSeq, msgTime, senderUin, sendNickName, elements, peerUid, chatType
+   FROM msg_table 
+   WHERE chatType = ? 
+   AND msgTime > ?
+   ORDER BY msgTime DESC 
+   LIMIT ?`,
+  [2, Date.now() / 1000 - 86400, 50] // Last 24 hours, max 50
+);
+
+recentMessages?.forEach(msg => {
+  const elements = JSON.parse(msg.elements);
+  console.log(`[${new Date(parseInt(msg.msgTime) * 1000).toISOString()}] ${msg.sendNickName}: `, elements);
+});
+```
+
+### Search Message Content
+
+```typescript
+const searchText = '%hello%';
+
+const results = dbApi.query<Message>(
+  'nt_msg.db',
+  `SELECT * FROM msg_table 
+   WHERE elements LIKE ? 
+   ORDER BY msgTime DESC 
+   LIMIT 100`,
+  [searchText]
+);
+
+console.log(`Found ${results?.length || 0} messages containing "hello"`);
+```
+
+### Get Group Member List
+
+```typescript
+interface GroupMember {
+  uid: string;
+  uin: string;
+  nick: string;
+  role: number;
+  cardName: string;
+}
+
+const groupUid = '123456789'; // Group peerUid
+
+const members = dbApi.query<GroupMember>(
+  'nt_group_data.db',
+  'SELECT uid, uin, nick, role, cardName FROM group_member WHERE groupUid = ?',
+  [groupUid]
+);
+
+members?.forEach(m => {
+  console.log(`${m.cardName || m.nick} (${m.uin}) - Role: ${m.role}`);
+});
+```
+
+### Export Chat History
+
+```typescript
+const db = dbApi.openDatabase('nt_msg.db');
+if (!db) throw new Error('Cannot open database');
+
+try {
+  const groupUid = 'your-group-uid';
+  const messages = db.query<Message>(
+    'SELECT * FROM msg_table WHERE peerUid = ? ORDER BY msgTime ASC',
+    [groupUid]
+  );
+  
+  const exportData = messages.map(msg => ({
+    time: new Date(parseInt(msg.msgTime) * 1000).toISOString(),
+    sender: msg.sendNickName,
+    uin: msg.senderUin,
+    content: JSON.parse(msg.elements),
+  }));
+  
+  require('fs').writeFileSync(
+    'chat-export.json',
+    JSON.stringify(exportData, null, 2)
+  );
+  
+  console.log(`Exported ${messages.length} messages`);
+} finally {
+  db.close();
+}
+```
+
+## Named Parameters
+
+You can use named parameters instead of positional:
+
+```typescript
+const result = dbApi.query(
+  'nt_msg.db',
+  'SELECT * FROM msg_table WHERE senderUin = :uin AND msgTime > :time',
+  {
+    ':uin': '123456789',
+    ':time': Date.now() / 1000 - 3600
+  }
+);
+```
+
+## Error Handling
+
+```typescript
+try {
+  const messages = dbApi.query('nt_msg.db', 'SELECT * FROM msg_table');
+  
+  if (messages === null) {
+    console.error('Query failed - passphrase not available');
+    return;
+  }
+  
+  console.log('Success:', messages.length, 'rows');
+} catch (error) {
+  console.error('Database error:', error);
+}
+```
+
+## Platform Requirements
+
+### Node.js Version
+
+Requires Node.js 22.5.0+ for `node:sqlite` support:
+
+```typescript
+const available = await dbApi.isSqliteAvailable();
+
+if (!available) {
+  console.error('node:sqlite not available. Upgrade to Node.js 22.5.0+');
+  return;
+}
+```
+
+## Best Practices
+
+1. **Always use read-only mode** when possible:
+   ```typescript
+   const db = dbApi.openDatabase('nt_msg.db', true); // true = read-only
+   ```
+
+2. **Close connections** to free resources:
+   ```typescript
+   try {
+     const data = db.query(...);
+   } finally {
+     db.close(); // Always close
+   }
+   ```
+
+3. **Use query() for simple cases** to auto-close:
+   ```typescript
+   const results = dbApi.query('nt_msg.db', 'SELECT ...');
+   // Connection closed automatically
+   ```
+
+4. **Check passphrase availability** before querying:
+   ```typescript
+   if (!dbApi.hasPassphrase()) {
+     console.log('Wait for login to complete');
+     return;
+   }
+   ```
+
+5. **Use parameterized queries** to prevent SQL injection:
+   ```typescript
+   // Good
+   db.query('SELECT * FROM table WHERE id = ?', [userInput]);
+   
+   // Bad
+   db.query(`SELECT * FROM table WHERE id = ${userInput}`);
+   ```
+
+## Limitations
+
+- **Passphrase required**: Cannot decrypt without login-captured key
+- **Node.js 22.5+**: Older versions don't have `node:sqlite`
+- **No real-time updates**: Changes in QQ app won't reflect immediately
+- **Schema changes**: Table structure may vary between QQ versions
+- **Performance**: Large queries on `nt_msg.db` can be slow
+
+## Related APIs
+
+- [Native Packet Handler](/advanced/native-packet-handler) - Monitor real-time protocol data
+- [Bypass Mode](/advanced/bypass-mode) - Security bypass configuration

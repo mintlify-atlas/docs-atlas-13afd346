@@ -1,0 +1,643 @@
+---
+title: Notice Events
+description: Monitor group activities, friend actions, and other notifications
+---
+
+## Overview
+
+Notice events inform your bot about various activities and changes in QQ. These events help you monitor group dynamics, friend interactions, and other important activities.
+
+## Common Fields
+
+All notice events share these fields:
+
+<ResponseField name="time" type="number" required>
+  Unix timestamp (in seconds) when the event occurred
+</ResponseField>
+
+<ResponseField name="self_id" type="number" required>
+  The bot's QQ number
+</ResponseField>
+
+<ResponseField name="post_type" type="string" required>
+  Always `"notice"` for notice events
+</ResponseField>
+
+<ResponseField name="notice_type" type="string" required>
+  Type of notice (see individual events below)
+</ResponseField>
+
+## Group Upload
+
+Triggered when a file is uploaded to a group.
+
+<ResponseField name="notice_type" type="string" required>
+  `"group_upload"`
+</ResponseField>
+
+<ResponseField name="group_id" type="number" required>
+  Group number
+</ResponseField>
+
+<ResponseField name="user_id" type="number" required>
+  QQ number of the uploader
+</ResponseField>
+
+<ResponseField name="file" type="object" required>
+  File information
+  
+  <Expandable title="file fields">
+    <ResponseField name="id" type="string" required>
+      File ID
+    </ResponseField>
+    
+    <ResponseField name="name" type="string" required>
+      File name
+    </ResponseField>
+    
+    <ResponseField name="size" type="number" required>
+      File size in bytes
+    </ResponseField>
+    
+    <ResponseField name="busid" type="number" required>
+      Business ID
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example
+
+```json
+{
+  "time": 1709641234,
+  "self_id": 123456789,
+  "post_type": "notice",
+  "notice_type": "group_upload",
+  "group_id": 12345678,
+  "user_id": 987654321,
+  "file": {
+    "id": "file_id_123",
+    "name": "document.pdf",
+    "size": 1048576,
+    "busid": 102
+  }
+}
+```
+
+## Group Admin
+
+Triggered when a group member's admin status changes.
+
+<ResponseField name="notice_type" type="string" required>
+  `"group_admin"`
+</ResponseField>
+
+<ResponseField name="sub_type" type="string" required>
+  - `"set"` - User was promoted to admin
+  - `"unset"` - User was demoted from admin
+</ResponseField>
+
+<ResponseField name="group_id" type="number" required>
+  Group number
+</ResponseField>
+
+<ResponseField name="user_id" type="number" required>
+  QQ number of the affected user
+</ResponseField>
+
+### Example
+
+```json
+{
+  "time": 1709641234,
+  "self_id": 123456789,
+  "post_type": "notice",
+  "notice_type": "group_admin",
+  "sub_type": "set",
+  "group_id": 12345678,
+  "user_id": 987654321
+}
+```
+
+## Group Member Decrease
+
+Triggered when a member leaves or is removed from a group.
+
+<ResponseField name="notice_type" type="string" required>
+  `"group_decrease"`
+</ResponseField>
+
+<ResponseField name="sub_type" type="string" required>
+  - `"leave"` - Member left voluntarily
+  - `"kick"` - Member was kicked
+  - `"kick_me"` - The bot was kicked
+  - `"disband"` - Group was disbanded
+</ResponseField>
+
+<ResponseField name="group_id" type="number" required>
+  Group number
+</ResponseField>
+
+<ResponseField name="user_id" type="number" required>
+  QQ number of the member who left
+</ResponseField>
+
+<ResponseField name="operator_id" type="number" required>
+  QQ number of the operator (who kicked/disbanded, or the member themselves if they left)
+</ResponseField>
+
+### Example: Member Left
+
+```json
+{
+  "time": 1709641234,
+  "self_id": 123456789,
+  "post_type": "notice",
+  "notice_type": "group_decrease",
+  "sub_type": "leave",
+  "group_id": 12345678,
+  "user_id": 987654321,
+  "operator_id": 987654321
+}
+```
+
+### Example: Member Kicked
+
+```json
+{
+  "time": 1709641234,
+  "self_id": 123456789,
+  "post_type": "notice",
+  "notice_type": "group_decrease",
+  "sub_type": "kick",
+  "group_id": 12345678,
+  "user_id": 987654321,
+  "operator_id": 111111111
+}
+```
+
+## Group Member Increase
+
+Triggered when a new member joins a group.
+
+<ResponseField name="notice_type" type="string" required>
+  `"group_increase"`
+</ResponseField>
+
+<ResponseField name="sub_type" type="string" required>
+  - `"approve"` - Join request was approved
+  - `"invite"` - Member was invited
+</ResponseField>
+
+<ResponseField name="group_id" type="number" required>
+  Group number
+</ResponseField>
+
+<ResponseField name="user_id" type="number" required>
+  QQ number of the new member
+</ResponseField>
+
+<ResponseField name="operator_id" type="number" required>
+  QQ number of the operator (who approved or invited)
+</ResponseField>
+
+### Example
+
+```json
+{
+  "time": 1709641234,
+  "self_id": 123456789,
+  "post_type": "notice",
+  "notice_type": "group_increase",
+  "sub_type": "invite",
+  "group_id": 12345678,
+  "user_id": 987654321,
+  "operator_id": 111111111
+}
+```
+
+## Group Ban
+
+Triggered when a member is banned or unbanned in a group.
+
+<ResponseField name="notice_type" type="string" required>
+  `"group_ban"`
+</ResponseField>
+
+<ResponseField name="sub_type" type="string" required>
+  - `"ban"` - Member was banned
+  - `"lift_ban"` - Member was unbanned
+</ResponseField>
+
+<ResponseField name="group_id" type="number" required>
+  Group number
+</ResponseField>
+
+<ResponseField name="user_id" type="number" required>
+  QQ number of the affected member
+</ResponseField>
+
+<ResponseField name="operator_id" type="number" required>
+  QQ number of the admin who performed the action
+</ResponseField>
+
+<ResponseField name="duration" type="number" required>
+  Ban duration in seconds (0 for unban)
+</ResponseField>
+
+### Example
+
+```json
+{
+  "time": 1709641234,
+  "self_id": 123456789,
+  "post_type": "notice",
+  "notice_type": "group_ban",
+  "sub_type": "ban",
+  "group_id": 12345678,
+  "user_id": 987654321,
+  "operator_id": 111111111,
+  "duration": 86400
+}
+```
+
+## Friend Add
+
+Triggered when a new friend is added.
+
+<ResponseField name="notice_type" type="string" required>
+  `"friend_add"`
+</ResponseField>
+
+<ResponseField name="user_id" type="number" required>
+  QQ number of the new friend
+</ResponseField>
+
+### Example
+
+```json
+{
+  "time": 1709641234,
+  "self_id": 123456789,
+  "post_type": "notice",
+  "notice_type": "friend_add",
+  "user_id": 987654321
+}
+```
+
+## Group Message Recall
+
+Triggered when a message is recalled in a group.
+
+<ResponseField name="notice_type" type="string" required>
+  `"group_recall"`
+</ResponseField>
+
+<ResponseField name="group_id" type="number" required>
+  Group number
+</ResponseField>
+
+<ResponseField name="user_id" type="number" required>
+  QQ number of the message sender
+</ResponseField>
+
+<ResponseField name="operator_id" type="number" required>
+  QQ number of the operator who recalled the message
+</ResponseField>
+
+<ResponseField name="message_id" type="number" required>
+  ID of the recalled message
+</ResponseField>
+
+### Example
+
+```json
+{
+  "time": 1709641234,
+  "self_id": 123456789,
+  "post_type": "notice",
+  "notice_type": "group_recall",
+  "group_id": 12345678,
+  "user_id": 987654321,
+  "operator_id": 111111111,
+  "message_id": 123456
+}
+```
+
+## Friend Message Recall
+
+Triggered when a friend recalls a message.
+
+<ResponseField name="notice_type" type="string" required>
+  `"friend_recall"`
+</ResponseField>
+
+<ResponseField name="user_id" type="number" required>
+  QQ number of the friend
+</ResponseField>
+
+<ResponseField name="message_id" type="number" required>
+  ID of the recalled message
+</ResponseField>
+
+### Example
+
+```json
+{
+  "time": 1709641234,
+  "self_id": 123456789,
+  "post_type": "notice",
+  "notice_type": "friend_recall",
+  "user_id": 987654321,
+  "message_id": 123456
+}
+```
+
+## Poke/Nudge
+
+Triggered when someone pokes/nudges in a chat.
+
+<ResponseField name="notice_type" type="string" required>
+  `"notify"`
+</ResponseField>
+
+<ResponseField name="sub_type" type="string" required>
+  `"poke"`
+</ResponseField>
+
+<ResponseField name="user_id" type="number" required>
+  QQ number of the poker
+</ResponseField>
+
+<ResponseField name="target_id" type="number" required>
+  QQ number of the target
+</ResponseField>
+
+<ResponseField name="group_id" type="number">
+  Group number (only for group pokes)
+</ResponseField>
+
+<ResponseField name="sender_id" type="number">
+  QQ number of the sender (for friend pokes)
+</ResponseField>
+
+### Example: Group Poke
+
+```json
+{
+  "time": 1709641234,
+  "self_id": 123456789,
+  "post_type": "notice",
+  "notice_type": "notify",
+  "sub_type": "poke",
+  "group_id": 12345678,
+  "user_id": 987654321,
+  "target_id": 123456789
+}
+```
+
+## Profile Like
+
+Triggered when someone likes the bot's profile.
+
+<ResponseField name="notice_type" type="string" required>
+  `"notify"`
+</ResponseField>
+
+<ResponseField name="sub_type" type="string" required>
+  `"profile_like"`
+</ResponseField>
+
+<ResponseField name="operator_id" type="number" required>
+  QQ number of the person who liked
+</ResponseField>
+
+<ResponseField name="operator_nick" type="string" required>
+  Nickname of the person who liked
+</ResponseField>
+
+<ResponseField name="times" type="number" required>
+  Number of likes
+</ResponseField>
+
+### Example
+
+```json
+{
+  "time": 1709641234,
+  "self_id": 123456789,
+  "post_type": "notice",
+  "notice_type": "notify",
+  "sub_type": "profile_like",
+  "operator_id": 987654321,
+  "operator_nick": "Alice",
+  "times": 10
+}
+```
+
+## Group Message Emoji Like
+
+Triggered when someone reacts to a group message with an emoji.
+
+<ResponseField name="notice_type" type="string" required>
+  `"group_msg_emoji_like"`
+</ResponseField>
+
+<ResponseField name="group_id" type="number" required>
+  Group number
+</ResponseField>
+
+<ResponseField name="user_id" type="number" required>
+  QQ number of the reactor
+</ResponseField>
+
+<ResponseField name="message_id" type="number" required>
+  ID of the message being reacted to
+</ResponseField>
+
+<ResponseField name="likes" type="array" required>
+  Array of emoji reactions
+  
+  <Expandable title="likes fields">
+    <ResponseField name="emoji_id" type="string" required>
+      Emoji ID
+    </ResponseField>
+    
+    <ResponseField name="count" type="number" required>
+      Number of this emoji reaction
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="is_add" type="boolean" required>
+  Whether the emoji was added (true) or removed (false)
+</ResponseField>
+
+### Example
+
+```json
+{
+  "time": 1709641234,
+  "self_id": 123456789,
+  "post_type": "notice",
+  "notice_type": "group_msg_emoji_like",
+  "group_id": 12345678,
+  "user_id": 987654321,
+  "message_id": 123456,
+  "likes": [
+    {
+      "emoji_id": "1",
+      "count": 3
+    }
+  ],
+  "is_add": true
+}
+```
+
+## Group Card Change
+
+Triggered when a member's group card (nickname) changes.
+
+<ResponseField name="notice_type" type="string" required>
+  `"group_card"`
+</ResponseField>
+
+<ResponseField name="group_id" type="number" required>
+  Group number
+</ResponseField>
+
+<ResponseField name="user_id" type="number" required>
+  QQ number of the member
+</ResponseField>
+
+<ResponseField name="card_new" type="string" required>
+  New card name
+</ResponseField>
+
+<ResponseField name="card_old" type="string" required>
+  Old card name
+</ResponseField>
+
+### Example
+
+```json
+{
+  "time": 1709641234,
+  "self_id": 123456789,
+  "post_type": "notice",
+  "notice_type": "group_card",
+  "group_id": 12345678,
+  "user_id": 987654321,
+  "card_new": "New Nickname",
+  "card_old": "Old Nickname"
+}
+```
+
+## Handling Notice Events
+
+### Basic Notice Handler
+
+```javascript
+function handleNotice(event) {
+  switch (event.notice_type) {
+    case 'group_upload':
+      console.log(`${event.user_id} uploaded ${event.file.name} to group ${event.group_id}`);
+      break;
+      
+    case 'group_increase':
+      console.log(`Welcome new member ${event.user_id} to group ${event.group_id}!`);
+      // You can send a welcome message here
+      break;
+      
+    case 'group_decrease':
+      if (event.sub_type === 'kick_me') {
+        console.log(`Bot was kicked from group ${event.group_id}`);
+      } else {
+        console.log(`Member ${event.user_id} left group ${event.group_id}`);
+      }
+      break;
+      
+    case 'group_recall':
+      console.log(`Message ${event.message_id} was recalled in group ${event.group_id}`);
+      // You can log the recalled message if you saved it
+      break;
+      
+    case 'friend_add':
+      console.log(`New friend added: ${event.user_id}`);
+      // Send a greeting message
+      break;
+      
+    case 'notify':
+      if (event.sub_type === 'poke' && event.target_id === event.self_id) {
+        console.log(`${event.user_id} poked the bot!`);
+        // React to the poke
+      } else if (event.sub_type === 'profile_like') {
+        console.log(`${event.operator_nick} liked the profile ${event.times} times`);
+      }
+      break;
+  }
+}
+```
+
+### Welcome New Members
+
+```javascript
+if (event.notice_type === 'group_increase') {
+  // Send welcome message
+  await sendGroupMessage(event.group_id, [
+    {
+      type: 'at',
+      data: { qq: event.user_id.toString() }
+    },
+    {
+      type: 'text',
+      data: { text: ' Welcome to the group!' }
+    }
+  ]);
+}
+```
+
+### Monitor File Uploads
+
+```javascript
+if (event.notice_type === 'group_upload') {
+  const fileSizeMB = (event.file.size / 1024 / 1024).toFixed(2);
+  console.log(`File uploaded: ${event.file.name} (${fileSizeMB} MB)`);
+  
+  // Notify if file is too large
+  if (event.file.size > 50 * 1024 * 1024) {  // 50 MB
+    await sendGroupMessage(event.group_id, 'Warning: Large file uploaded!');
+  }
+}
+```
+
+### Track Message Recalls
+
+```javascript
+// Store messages for recall tracking
+const messageCache = new Map();
+
+// When receiving a message
+if (event.post_type === 'message') {
+  messageCache.set(event.message_id, {
+    content: event.raw_message,
+    sender: event.user_id,
+    time: event.time
+  });
+}
+
+// When message is recalled
+if (event.notice_type === 'group_recall') {
+  const original = messageCache.get(event.message_id);
+  if (original) {
+    console.log(`Recalled message: "${original.content}"`);
+    // Optionally notify about the recall
+  }
+}
+```
+
+## Next Steps
+
+- Learn about [Request Events](/api/events/request-events)
+- Explore [Group Actions](/api/onebot/group-actions) to manage groups
+- Check [Message Events](/api/events/message-events) for handling messages

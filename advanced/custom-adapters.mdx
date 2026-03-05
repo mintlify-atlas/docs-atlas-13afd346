@@ -1,0 +1,511 @@
+---
+title: Custom Protocol Adapters
+description: Create custom protocol adapters to extend NapCat beyond OneBot 11
+icon: puzzle-piece
+---
+
+## Overview
+
+NapCat's adapter system allows you to create custom protocol implementations alongside or instead of the built-in OneBot 11 protocol. This enables support for proprietary protocols, custom APIs, or integration with other bot frameworks.
+
+## Architecture
+
+The adapter system is managed by `NapCatAdapterManager` in `packages/napcat-adapter/index.ts:70`, which handles the lifecycle of multiple protocol adapters.
+
+### Built-in Adapters
+
+1. **OneBot 11 Adapter** - Default protocol adapter
+2. **NapCat Protocol Adapter** - Native NapCat protocol (optional)
+
+### Adapter Interface
+
+All adapters must implement:
+
+```typescript
+export interface IProtocolAdapter {
+  readonly name: string;
+  readonly enabled: boolean;
+  init(): Promise<void>;
+  close(): Promise<void>;
+}
+```
+
+## Creating a Custom Adapter
+
+### Step 1: Implement the Interface
+
+```typescript
+import { IProtocolAdapter } from 'napcat-adapter';
+import { NapCatCore, InstanceContext } from 'napcat-core';
+
+export class MyCustomAdapter implements IProtocolAdapter {
+  readonly name = 'my-custom-protocol';
+  private _enabled: boolean = true;
+  
+  private core: NapCatCore;
+  private context: InstanceContext;
+  
+  constructor(core: NapCatCore, context: InstanceContext) {
+    this.core = core;
+    this.context = context;
+  }
+  
+  get enabled(): boolean {
+    return this._enabled;
+  }
+  
+  async init(): Promise<void> {
+    this.context.logger.log(`[${this.name}] Initializing...`);
+    
+    // Set up your protocol listeners
+    this.setupEventListeners();
+    
+    // Initialize network connections
+    await this.startNetworkServices();
+    
+    this.context.logger.log(`[${this.name}] Initialized successfully`);
+  }
+  
+  async close(): Promise<void> {
+    this.context.logger.log(`[${this.name}] Closing...`);
+    
+    // Clean up resources
+    await this.stopNetworkServices();
+    this.removeEventListeners();
+    
+    this.context.logger.log(`[${this.name}] Closed`);
+  }
+  
+  private setupEventListeners(): void {
+    // Listen to core events
+  }
+  
+  private removeEventListeners(): void {
+    // Clean up listeners
+  }
+  
+  private async startNetworkServices(): Promise<void> {
+    // Start HTTP/WebSocket servers, etc.
+  }
+  
+  private async stopNetworkServices(): Promise<void> {
+    // Stop all network services
+  }
+}
+```
+
+### Step 2: Listen to Core Events
+
+Connect to NapCat's event system:
+
+```typescript
+import { NodeIKernelMsgListener, RawMessage } from 'napcat-core';
+
+private setupEventListeners(): void {
+  const msgListener = new NodeIKernelMsgListener();
+  
+  msgListener.onRecvMsg = async (messages: RawMessage[]) => {
+    for (const msg of messages) {
+      await this.handleMessage(msg);
+    }
+  };
+  
+  this.context.session
+    .getMsgService()
+    .addKernelMsgListener(msgListener);
+}
+
+private async handleMessage(message: RawMessage): Promise<void> {
+  // Transform to your protocol format
+  const customEvent = this.transformMessage(message);
+  
+  // Send to your protocol clients
+  await this.broadcastEvent(customEvent);
+}
+```
+
+### Step 3: Implement Network Layer
+
+```typescript
+import express from 'express';
+import { Server } from 'http';
+
+private server?: Server;
+
+private async startNetworkServices(): Promise<void> {
+  const app = express();
+  
+  app.use(express.json());
+  
+  // Define your API routes
+  app.post('/send-message', async (req, res) => {
+    const { chat_id, text } = req.body;
+    
+    try {
+      await this.sendMessage(chat_id, text);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  this.server = app.listen(3000, () => {
+    this.context.logger.log('[MyProtocol] HTTP server listening on port 3000');
+  });
+}
+
+private async stopNetworkServices(): Promise<void> {
+  if (this.server) {
+    await new Promise<void>((resolve) => {
+      this.server!.close(() => resolve());
+    });
+  }
+}
+
+private async sendMessage(chatId: string, text: string): Promise<void> {
+  // Use NapCat Core API to send message
+  await this.core.apis.MsgApi.sendMsg(
+    { chatType: 2, peerUid: chatId, guildId: '' },
+    [{ elementType: 1, elementId: '', textElement: { content: text } }],
+    5000
+  );
+}
+```
+
+## Registering Your Adapter
+
+Adapters are registered in the `NapCatAdapterManager`:
+
+```typescript
+import { NapCatAdapterManager } from 'napcat-adapter';
+import { MyCustomAdapter } from './my-custom-adapter';
+
+// In your initialization code
+const adapterManager = new NapCatAdapterManager(core, context, pathWrapper);
+
+// Register your custom adapter
+const customAdapter = new MyCustomAdapter(core, context);
+adapterManager.adapters.set('my-custom-protocol', {
+  name: 'my-custom-protocol',
+  enabled: true,
+  init: () => customAdapter.init(),
+  close: () => customAdapter.close(),
+  getAdapter: () => customAdapter,
+});
+
+// Initialize all adapters
+await adapterManager.initAdapters();
+```
+
+## Network Adapter Pattern (Advanced)
+
+For more complex protocols, use the network adapter pattern from OneBot 11:
+
+### Base Network Adapter
+
+```typescript
+import { NetworkAdapterConfig } from './config';
+import { LogWrapper, NapCatCore } from 'napcat-core';
+
+export interface MyProtocolConfig extends NetworkAdapterConfig {
+  enable: boolean;
+  name: string;
+  host: string;
+  port: number;
+}
+
+export abstract class IMyProtocolNetworkAdapter<CT extends MyProtocolConfig> {
+  name: string;
+  isEnable: boolean = false;
+  config: CT;
+  readonly logger: LogWrapper;
+  readonly core: NapCatCore;
+  
+  constructor(name: string, config: CT, core: NapCatCore) {
+    this.name = name;
+    this.config = structuredClone(config);
+    this.core = core;
+    this.logger = core.context.logger;
+  }
+  
+  abstract onEvent<T>(event: T): Promise<void>;
+  abstract open(): void | Promise<void>;
+  abstract close(): void | Promise<void>;
+  abstract reload(config: unknown): Promise<void>;
+  
+  get isActive(): boolean {
+    return this.isEnable;
+  }
+}
+```
+
+### HTTP Server Adapter Example
+
+```typescript
+import express, { Express } from 'express';
+import { Server } from 'http';
+
+class MyProtocolHttpServer extends IMyProtocolNetworkAdapter<MyProtocolConfig> {
+  private app?: Express;
+  private server?: Server;
+  
+  async open(): Promise<void> {
+    this.app = express();
+    this.app.use(express.json());
+    
+    // Register routes
+    this.setupRoutes();
+    
+    this.server = this.app.listen(this.config.port, this.config.host, () => {
+      this.isEnable = true;
+      this.logger.log(`[${this.name}] HTTP server started on ${this.config.host}:${this.config.port}`);
+    });
+  }
+  
+  async close(): Promise<void> {
+    if (this.server) {
+      await new Promise<void>((resolve) => {
+        this.server!.close(() => {
+          this.isEnable = false;
+          this.logger.log(`[${this.name}] HTTP server stopped`);
+          resolve();
+        });
+      });
+    }
+  }
+  
+  async onEvent<T>(event: T): Promise<void> {
+    // Events are pushed to clients via SSE or stored for polling
+  }
+  
+  async reload(config: unknown): Promise<void> {
+    await this.close();
+    this.config = config as MyProtocolConfig;
+    await this.open();
+  }
+  
+  private setupRoutes(): void {
+    this.app!.post('/api/send-message', async (req, res) => {
+      try {
+        const result = await this.handleSendMessage(req.body);
+        res.json(result);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+    
+    this.app!.get('/api/get-info', async (req, res) => {
+      res.json({
+        uin: this.core.selfInfo.uin,
+        uid: this.core.selfInfo.uid,
+        nick: this.core.selfInfo.nick,
+      });
+    });
+  }
+  
+  private async handleSendMessage(params: any): Promise<any> {
+    // Use core APIs to send message
+    return await this.core.apis.MsgApi.sendMsg(
+      params.peer,
+      params.elements,
+      params.timeout
+    );
+  }
+}
+```
+
+## Network Manager Pattern
+
+Manage multiple network adapters:
+
+```typescript
+class MyProtocolNetworkManager {
+  private adapters: Map<string, IMyProtocolNetworkAdapter<any>> = new Map();
+  
+  registerAdapter(adapter: IMyProtocolNetworkAdapter<any>): void {
+    this.adapters.set(adapter.name, adapter);
+  }
+  
+  async openAllAdapters(): Promise<void> {
+    for (const adapter of this.adapters.values()) {
+      try {
+        await adapter.open();
+      } catch (error) {
+        console.error(`Failed to open adapter ${adapter.name}:`, error);
+      }
+    }
+  }
+  
+  async closeAllAdapters(): Promise<void> {
+    for (const adapter of this.adapters.values()) {
+      try {
+        await adapter.close();
+      } catch (error) {
+        console.error(`Failed to close adapter ${adapter.name}:`, error);
+      }
+    }
+  }
+  
+  async emitEvent<T>(event: T): Promise<void> {
+    for (const adapter of this.adapters.values()) {
+      if (adapter.isActive) {
+        try {
+          await adapter.onEvent(event);
+        } catch (error) {
+          console.error(`Adapter ${adapter.name} failed to handle event:`, error);
+        }
+      }
+    }
+  }
+  
+  getAdapter(name: string): IMyProtocolNetworkAdapter<any> | undefined {
+    return this.adapters.get(name);
+  }
+}
+```
+
+## Complete Example: Telegram-Style Protocol
+
+```typescript
+import { IProtocolAdapter, NapCatCore, InstanceContext, RawMessage } from 'napcat-core';
+import express from 'express';
+import { Server } from 'http';
+
+interface TelegramMessage {
+  message_id: number;
+  from: {
+    id: number;
+    first_name: string;
+  };
+  chat: {
+    id: number;
+    type: string;
+  };
+  text: string;
+}
+
+class TelegramStyleAdapter implements IProtocolAdapter {
+  readonly name = 'telegram-style';
+  private core: NapCatCore;
+  private context: InstanceContext;
+  private server?: Server;
+  private msgIdCounter = 1;
+  
+  constructor(core: NapCatCore, context: InstanceContext) {
+    this.core = core;
+    this.context = context;
+  }
+  
+  get enabled(): boolean {
+    return true;
+  }
+  
+  async init(): Promise<void> {
+    // Start HTTP API server
+    const app = express();
+    app.use(express.json());
+    
+    app.post('/sendMessage', async (req, res) => {
+      const { chat_id, text } = req.body;
+      
+      try {
+        await this.core.apis.MsgApi.sendMsg(
+          { chatType: 2, peerUid: chat_id, guildId: '' },
+          [{ elementType: 1, elementId: '', textElement: { content: text } }],
+          5000
+        );
+        
+        res.json({ ok: true, result: { message_id: this.msgIdCounter++ } });
+      } catch (error) {
+        res.json({ ok: false, error: error.message });
+      }
+    });
+    
+    app.get('/getMe', (req, res) => {
+      res.json({
+        ok: true,
+        result: {
+          id: parseInt(this.core.selfInfo.uin),
+          first_name: this.core.selfInfo.nick,
+          is_bot: true,
+        },
+      });
+    });
+    
+    this.server = app.listen(8080);
+    this.context.logger.log('[TelegramStyle] API server started on port 8080');
+  }
+  
+  async close(): Promise<void> {
+    if (this.server) {
+      await new Promise<void>((resolve) => {
+        this.server!.close(() => resolve());
+      });
+    }
+  }
+}
+```
+
+## Adapter Lifecycle
+
+From `NapCatAdapterManager.ts:89`:
+
+```typescript
+async initAdapters(): Promise<void> {
+  this.context.logger.log('[AdapterManager] 开始初始化协议适配器...');
+  
+  for (const [name, adapter] of this.adapters) {
+    try {
+      if (adapter.enabled) {
+        await adapter.init();
+        this.context.logger.log(`[AdapterManager] ${name} 适配器初始化完成`);
+      } else {
+        this.context.logger.log(`[AdapterManager] ${name} 适配器未启用`);
+      }
+    } catch (e) {
+      this.context.logger.logError(`[AdapterManager] ${name} 适配器初始化失败:`, e);
+    }
+  }
+}
+```
+
+## Best Practices
+
+1. **Error handling**: Always wrap adapter operations in try-catch
+2. **Resource cleanup**: Implement proper cleanup in `close()`
+3. **Graceful degradation**: Handle core API failures gracefully
+4. **Logging**: Use `context.logger` for consistent logging
+5. **Configuration**: Support enable/disable flags
+6. **Event filtering**: Only process events your protocol needs
+7. **Performance**: Avoid blocking operations in event handlers
+
+## Testing Your Adapter
+
+```typescript
+import { NapCatCore } from 'napcat-core';
+import { MyCustomAdapter } from './my-adapter';
+
+async function testAdapter() {
+  const core = new NapCatCore(/* ... */);
+  const adapter = new MyCustomAdapter(core, core.context);
+  
+  try {
+    await adapter.init();
+    console.log('✓ Adapter initialized');
+    
+    // Test message handling
+    // Test API endpoints
+    // Test error cases
+    
+    await adapter.close();
+    console.log('✓ Adapter closed cleanly');
+  } catch (error) {
+    console.error('✗ Test failed:', error);
+  }
+}
+```
+
+## Related Documentation
+
+- [Native Packet Handler](/advanced/native-packet-handler) - Low-level protocol access
+- [Database API](/advanced/database-api) - Access message history

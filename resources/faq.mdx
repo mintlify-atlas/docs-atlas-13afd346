@@ -1,0 +1,420 @@
+---
+title: Frequently Asked Questions
+description: Common questions about NapCat
+---
+
+## General Questions
+
+### What is NapCat?
+
+NapCat is a modern implementation of the Bot protocol based on NTQQ. It implements the OneBot 11 protocol, allowing developers to create QQ bots using a standardized API.
+
+### Is NapCat free?
+
+Yes, NapCat is a non-profit open-source project. You can use it freely under the terms of its license.
+
+### Which QQ protocol does NapCat use?
+
+NapCat is based on NTQQ (the new Tencent QQ client) and implements the OneBot 11 protocol standard for bot development.
+
+### What are the main features?
+
+- **Easy to Use** - Beginners can get started effortlessly
+- **Quick and Efficient** - Runs for extended periods on low-memory systems
+- **Rich API Interface** - Fully implements most standard OneBot 11 interfaces
+- **Stable and Reliable** - Continuous and stable development and maintenance
+
+## Installation and Setup
+
+### How do I install NapCat?
+
+1. Download the latest version from the [Release page](https://github.com/NapNeko/NapCatQQ/releases/)
+2. Extract the archive
+3. Configure your `onebot11.json` file
+4. Run NapCat
+
+For detailed instructions, see the [Installation Guide](/guide/getting-started/installation).
+
+### What are the system requirements?
+
+NapCat is lightweight and can run on:
+- Windows, Linux, or macOS
+- Low-memory systems (as low as 512MB RAM)
+- Requires a compatible NTQQ installation
+
+### Do I need to install NTQQ separately?
+
+Yes, NapCat requires NTQQ to be installed as it's based on the NTQQ client.
+
+### Where do I find the configuration file?
+
+The configuration file is typically named `onebot11.json` and is located in the NapCat configuration directory. The exact location depends on your installation method.
+
+## Configuration
+
+### How do I enable the HTTP API?
+
+Add an HTTP server configuration to your `onebot11.json`:
+
+```json
+{
+  "network": {
+    "httpServers": [{
+      "enable": true,
+      "port": 3000,
+      "host": "127.0.0.1",
+      "token": "your_secret_token"
+    }]
+  }
+}
+```
+
+### How do I enable WebSocket?
+
+Add a WebSocket server configuration:
+
+```json
+{
+  "network": {
+    "websocketServers": [{
+      "enable": true,
+      "port": 3001,
+      "host": "127.0.0.1",
+      "token": "your_secret_token"
+    }]
+  }
+}
+```
+
+### Can I run multiple network adapters?
+
+Yes! You can configure multiple HTTP servers, WebSocket servers, WebSocket clients, and webhooks simultaneously:
+
+```json
+{
+  "network": {
+    "httpServers": [{...}, {...}],
+    "websocketServers": [{...}, {...}],
+    "websocketClients": [{...}],
+    "httpClients": [{...}]
+  }
+}
+```
+
+### What is the token for?
+
+The token is used for authentication. It ensures that only authorized applications can access your bot's API. Always use a strong, random token in production.
+
+### Do I need to set a token?
+
+The token is optional but highly recommended for security. If you don't set a token, anyone who can reach your bot's API can control it.
+
+## Authentication and Security
+
+### How do I authenticate API requests?
+
+Use one of these methods:
+
+**Authorization header (recommended):**
+```bash
+curl -H "Authorization: Bearer your_token" http://localhost:3000/api
+```
+
+**Query parameter:**
+```bash
+curl "http://localhost:3000/api?access_token=your_token"
+```
+
+### How do I verify webhook signatures?
+
+NapCat signs webhook requests with HMAC-SHA1:
+
+```javascript
+const crypto = require('crypto');
+const signature = req.headers['x-signature'];
+const body = JSON.stringify(req.body);
+
+const hmac = crypto.createHmac('sha1', 'your_token');
+hmac.update(body);
+const expected = 'sha1=' + hmac.digest('hex');
+
+if (signature === expected) {
+  // Signature valid
+}
+```
+
+### Is it safe to expose NapCat to the internet?
+
+No. NapCat should always run behind a reverse proxy (like Nginx) with:
+- HTTPS/TLS encryption
+- Rate limiting
+- IP whitelisting
+- Strong authentication tokens
+
+For development, bind to `127.0.0.1` only.
+
+## Usage and API
+
+### How do I send a message?
+
+**HTTP API:**
+```bash
+curl -X POST http://localhost:3000/send_private_msg \
+  -H "Content-Type: application/json" \
+  -d '{"user_id": 12345678, "message": "Hello!"}'
+```
+
+**WebSocket:**
+```javascript
+ws.send(JSON.stringify({
+  action: 'send_private_msg',
+  params: {
+    user_id: 12345678,
+    message: 'Hello!'
+  }
+}));
+```
+
+### How do I receive messages?
+
+Messages are delivered via:
+- **WebSocket** - Events pushed to connected clients
+- **HTTP Webhook** - HTTP POST to your server
+- **WebSocket Client** (Reverse WS) - NapCat connects to your server
+
+See [Network Configuration](/guide/configuration/network) for details.
+
+### What message formats are supported?
+
+NapCat supports:
+- Plain text strings
+- CQ code format (e.g., `[CQ:image,file=xxx]`)
+- Array format (OneBot 11 message segments)
+
+```json
+{
+  "message": [
+    {"type": "text", "data": {"text": "Hello "}},
+    {"type": "face", "data": {"id": "123"}}
+  ]
+}
+```
+
+### How do I send images?
+
+Use the image message segment:
+
+```json
+{
+  "message": [
+    {"type": "image", "data": {"file": "file:///path/to/image.jpg"}}
+  ]
+}
+```
+
+Supported image sources:
+- Local file: `file:///path/to/image.jpg`
+- HTTP URL: `http://example.com/image.jpg`
+- Base64: `base64://iVBORw0KG...`
+
+### What APIs are available?
+
+NapCat implements most OneBot 11 standard APIs:
+- Send messages (private, group, guild)
+- Delete messages
+- Get message info
+- Send reactions (likes)
+- Group management (kick, ban, admin)
+- Friend requests
+- Group member info
+- And more...
+
+See the [API Reference](/api/actions/overview) for complete list.
+
+## Troubleshooting
+
+### My bot won't connect
+
+1. Check if NapCat is running
+2. Verify the port and host in your configuration
+3. Check firewall settings
+4. Ensure NTQQ is logged in
+5. Review logs for error messages
+
+See [Troubleshooting Guide](/resources/troubleshooting) for detailed solutions.
+
+### I'm getting "token verify failed"
+
+This means authentication failed:
+1. Verify the token matches in both config and request
+2. Check for typos or extra spaces
+3. Ensure you're sending the token correctly (header or query param)
+4. Token is case-sensitive
+
+### Events aren't being received
+
+1. For WebSocket: Connect to `/` not `/api`
+2. Check that the adapter is enabled in config
+3. Verify the bot is logged in and online
+4. Check `reportSelfMessage` setting
+5. Enable debug logging to see event flow
+
+### Messages aren't sending
+
+1. Check API response for error messages
+2. Verify user/group ID is correct
+3. Ensure bot has permission (is friend or group member)
+4. Check message format
+5. Review rate limits
+
+### Configuration changes have no effect
+
+1. Ensure you edited the correct config file
+2. Check JSON syntax is valid
+3. Restart NapCat completely
+4. Check file permissions
+5. Look for error messages in logs
+
+## Community and Support
+
+### Where can I get help?
+
+Join the NapCat community groups (get password from WebUI):
+- [NapCat Family Group 1](https://qm.qq.com/q/VwpnklcXqo) (1090875633)
+- [NapCat Family Group 2](https://qm.qq.com/q/gq18RH7o7S) (1059714215)
+- [NapCat Family Group 3](https://qm.qq.com/q/XyiyGPqa42) (1085662710)
+- [NapCat Family Group 4](https://qm.qq.com/q/E4nfkGD6oK) (1085359803)
+
+**Note:** This is a non-profit project. Please search for solutions to basic questions and integration issues on your own.
+
+### Can I contribute to NapCat?
+
+Yes! Contributions are welcome. Please read the [Contributing Guide](/resources/contributing) for guidelines.
+
+### How do I report a bug?
+
+Report bugs on [GitHub Issues](https://github.com/NapNeko/NapCatQQ/issues):
+1. Search for existing issues first
+2. Provide clear reproduction steps
+3. Include version, environment, and logs
+4. Remove sensitive information (tokens, QQ numbers)
+
+### Where is the documentation?
+
+Documentation is available at:
+- [napneko.github.io](https://napneko.github.io/)
+- [doc.napneko.icu](https://doc.napneko.icu/)
+- [napcat.napneko.icu](https://napcat.napneko.icu/)
+- [napneko.pages.dev](https://napneko.pages.dev/)
+- [napcat.top](https://napcat.top/)
+
+### Is there an English community?
+
+The main community is Chinese-language focused. However, documentation is being translated, and English speakers are welcome in the community groups.
+
+## Advanced Topics
+
+### Can I run NapCat in Docker?
+
+Yes, Docker deployment is supported. Check the deployment documentation for container setup.
+
+### How do I run multiple bots?
+
+Run separate NapCat instances with different configuration files and NTQQ accounts.
+
+### Can I use NapCat with other frameworks?
+
+Yes! NapCat implements the OneBot 11 standard, so it works with any framework that supports OneBot 11:
+- Nonebot2
+- Koishi
+- AstrBot
+- And many others
+
+### What's the difference between WebSocket Server and Client?
+
+- **WebSocket Server** - Your application connects to NapCat
+- **WebSocket Client** (Reverse) - NapCat connects to your server
+
+Use server mode for simpler setups. Use client mode when NapCat needs to connect out (e.g., NapCat behind NAT).
+
+### How do I handle rate limits?
+
+Implement rate limiting in your application:
+- Don't send too many messages too quickly
+- Use delays between requests
+- Monitor API responses for rate limit errors
+- Implement exponential backoff on errors
+
+### Can I modify NapCat?
+
+Yes, but with restrictions:
+- NapCat is open source under specific license terms
+- Developing projects based on NapCat code requires authorization from the main author
+- Always comply with local laws and regulations
+- See the [License](https://github.com/NapNeko/NapCatQQ/blob/main/LICENSE) for details
+
+## Version and Updates
+
+### How do I check my NapCat version?
+
+Check the version in:
+- Startup logs
+- WebUI About page
+- HTTP API root endpoint response
+
+### How do I update NapCat?
+
+1. Download the latest release
+2. Backup your configuration
+3. Stop NapCat
+4. Replace files with new version
+5. Review migration notes for breaking changes
+6. Start NapCat
+
+### What is the latest version?
+
+Check the [Release page](https://github.com/NapNeko/NapCatQQ/releases/) for the latest version.
+
+### Are there breaking changes between versions?
+
+Some versions may include breaking changes. Always review the [Migration Guide](/resources/migration-guide) and release notes before updating.
+
+### What is the minimum version for community groups?
+
+The community join key requires NapCat version >= 4.17.31 and is only valid for the latest 100 versions.
+
+## Project and Development
+
+### Who maintains NapCat?
+
+NapCat is currently looking for a new primary maintainer. Contact nanaeonn@outlook.com if interested.
+
+### What license does NapCat use?
+
+NapCat uses a hybrid license:
+- Third-party code follows original licenses
+- Certain authorized projects are exempt from restrictions
+- Remaining code is governed by the repository license
+
+See [LICENSE](https://github.com/NapNeko/NapCatQQ/blob/main/LICENSE) for details.
+
+### Can I mention NapCat in other communities?
+
+No. Please do not mention NapCat in other communities (including other protocol-side or application-side projects) to avoid disputes.
+
+### How can I support the project?
+
+You can support NapCat by:
+- Contributing code or documentation
+- Reporting bugs and issues
+- Helping other users in the community
+- Sharing your projects built with NapCat
+- Following the code of conduct
+
+## Next Steps
+
+- Read the [Getting Started Guide](/guide/getting-started/installation)
+- Explore [Configuration Options](/guide/configuration/network)
+- Check the [API Reference](/api/actions/overview)
+- Join the [Community](/resources/community)
+- Review [Troubleshooting Tips](/resources/troubleshooting)

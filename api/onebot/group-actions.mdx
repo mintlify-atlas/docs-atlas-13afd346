@@ -1,0 +1,666 @@
+---
+title: Group Actions
+description: OneBot 11 group management actions
+---
+
+## get_group_info
+
+Get group information.
+
+### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+### Response
+
+<ResponseField name="group_id" type="number">
+  Group number
+</ResponseField>
+
+<ResponseField name="group_name" type="string">
+  Group name
+</ResponseField>
+
+<ResponseField name="group_remark" type="string">
+  Group remark (note)
+</ResponseField>
+
+<ResponseField name="group_all_shut" type="number">
+  All members muted: `-1` if enabled, `0` if disabled
+</ResponseField>
+
+<ResponseField name="member_count" type="number">
+  Current member count
+</ResponseField>
+
+<ResponseField name="max_member_count" type="number">
+  Maximum member capacity
+</ResponseField>
+
+### Example
+
+```json
+// Request
+{
+  "group_id": "123456"
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": {
+    "group_id": 123456,
+    "group_name": "Example Group",
+    "group_remark": "My Group",
+    "group_all_shut": 0,
+    "member_count": 50,
+    "max_member_count": 200
+  }
+}
+```
+
+## get_group_list
+
+Get the list of groups the bot has joined.
+
+### Request
+
+No parameters required.
+
+### Response
+
+<ResponseField name="data" type="array">
+  Array of group objects
+</ResponseField>
+
+Each group object contains:
+- `group_id` (number): Group number
+- `group_name` (string): Group name
+- `group_remark` (string): Group remark
+- `group_all_shut` (number): Mute status
+- `member_count` (number): Member count
+- `max_member_count` (number): Max capacity
+
+### Example
+
+```json
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": [
+    {
+      "group_id": 123456,
+      "group_name": "Group 1",
+      "group_remark": "My Group 1",
+      "group_all_shut": 0,
+      "member_count": 50,
+      "max_member_count": 200
+    },
+    {
+      "group_id": 789012,
+      "group_name": "Group 2",
+      "group_remark": "My Group 2",
+      "group_all_shut": -1,
+      "member_count": 100,
+      "max_member_count": 500
+    }
+  ]
+}
+```
+
+## get_group_member_info
+
+Get information about a group member.
+
+### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+<ParamField path="user_id" type="string" required>
+  Member QQ number
+</ParamField>
+
+<ParamField path="no_cache" type="boolean | string" default="false">
+  Bypass cache and fetch fresh data
+</ParamField>
+
+### Response
+
+<ResponseField name="group_id" type="number">
+  Group number
+</ResponseField>
+
+<ResponseField name="user_id" type="number">
+  Member QQ number
+</ResponseField>
+
+<ResponseField name="nickname" type="string">
+  Member nickname
+</ResponseField>
+
+<ResponseField name="card" type="string">
+  Group card (display name in group)
+</ResponseField>
+
+<ResponseField name="sex" type="string">
+  Gender: `male`, `female`, or `unknown`
+</ResponseField>
+
+<ResponseField name="age" type="number">
+  Age
+</ResponseField>
+
+<ResponseField name="join_time" type="number">
+  Join time (Unix timestamp)
+</ResponseField>
+
+<ResponseField name="last_sent_time" type="number">
+  Last message time (Unix timestamp)
+</ResponseField>
+
+<ResponseField name="level" type="string">
+  Group level
+</ResponseField>
+
+<ResponseField name="qq_level" type="number">
+  QQ level
+</ResponseField>
+
+<ResponseField name="role" type="string">
+  Role: `owner`, `admin`, or `member`
+</ResponseField>
+
+<ResponseField name="title" type="string">
+  Special title
+</ResponseField>
+
+<ResponseField name="area" type="string">
+  Location/area
+</ResponseField>
+
+<ResponseField name="unfriendly" type="boolean">
+  Has bad record
+</ResponseField>
+
+<ResponseField name="title_expire_time" type="number">
+  Special title expiration time
+</ResponseField>
+
+<ResponseField name="card_changeable" type="boolean">
+  Can change group card
+</ResponseField>
+
+<ResponseField name="shut_up_timestamp" type="number">
+  Mute expiration timestamp
+</ResponseField>
+
+<ResponseField name="is_robot" type="boolean">
+  Is a robot/bot account
+</ResponseField>
+
+### Example
+
+```json
+// Request
+{
+  "group_id": "123456",
+  "user_id": "987654"
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": {
+    "group_id": 123456,
+    "user_id": 987654,
+    "nickname": "User",
+    "card": "Card Name",
+    "sex": "male",
+    "age": 20,
+    "join_time": 1234567890,
+    "last_sent_time": 1234567890,
+    "level": "10",
+    "qq_level": 64,
+    "role": "member",
+    "title": "Special Member",
+    "shut_up_timestamp": 0,
+    "card_changeable": true,
+    "is_robot": false
+  }
+}
+```
+
+## get_group_member_list
+
+Get the list of members in a group.
+
+### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+<ParamField path="no_cache" type="boolean | string" default="false">
+  Bypass cache and fetch fresh data
+</ParamField>
+
+### Response
+
+<ResponseField name="data" type="array">
+  Array of group member objects (same structure as `get_group_member_info`)
+</ResponseField>
+
+### Example
+
+```json
+// Request
+{
+  "group_id": "123456"
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": [
+    {
+      "group_id": 123456,
+      "user_id": 111111,
+      "nickname": "Owner",
+      "card": "Group Owner",
+      "role": "owner"
+    },
+    {
+      "group_id": 123456,
+      "user_id": 222222,
+      "nickname": "Admin",
+      "card": "Administrator",
+      "role": "admin"
+    },
+    {
+      "group_id": 123456,
+      "user_id": 333333,
+      "nickname": "Member",
+      "card": "Regular Member",
+      "role": "member"
+    }
+  ]
+}
+```
+
+## set_group_kick
+
+Kick a member from the group.
+
+### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+<ParamField path="user_id" type="string" required>
+  Member QQ number to kick
+</ParamField>
+
+<ParamField path="reject_add_request" type="boolean | string" default="false">
+  Reject future join requests from this user
+</ParamField>
+
+### Response
+
+<ResponseField name="result" type="null">
+  Returns `null` on success
+</ResponseField>
+
+### Example
+
+```json
+// Request
+{
+  "group_id": "123456",
+  "user_id": "987654",
+  "reject_add_request": true
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": null
+}
+```
+
+## set_group_ban
+
+Mute a group member.
+
+### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+<ParamField path="user_id" type="string" required>
+  Member QQ number to mute
+</ParamField>
+
+<ParamField path="duration" type="number | string" default="1800">
+  Mute duration in seconds (0 to unmute, max 2592000 = 30 days)
+</ParamField>
+
+### Response
+
+<ResponseField name="result" type="null">
+  Returns `null` on success
+</ResponseField>
+
+### Example
+
+```json
+// Request - Mute for 1 hour
+{
+  "group_id": "123456",
+  "user_id": "987654",
+  "duration": 3600
+}
+
+// Request - Unmute
+{
+  "group_id": "123456",
+  "user_id": "987654",
+  "duration": 0
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": null
+}
+```
+
+## set_group_whole_ban
+
+Enable or disable all members mute.
+
+### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+<ParamField path="enable" type="boolean | string" default="true">
+  Enable (`true`) or disable (`false`) all members mute
+</ParamField>
+
+### Response
+
+<ResponseField name="result" type="null">
+  Returns `null` on success
+</ResponseField>
+
+### Example
+
+```json
+// Request - Enable
+{
+  "group_id": "123456",
+  "enable": true
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": null
+}
+```
+
+## set_group_admin
+
+Set or remove group admin.
+
+### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+<ParamField path="user_id" type="string" required>
+  Member QQ number
+</ParamField>
+
+<ParamField path="enable" type="boolean | string" default="true">
+  Promote (`true`) or demote (`false`) admin
+</ParamField>
+
+### Response
+
+<ResponseField name="result" type="null">
+  Returns `null` on success
+</ResponseField>
+
+### Example
+
+```json
+// Request - Promote to admin
+{
+  "group_id": "123456",
+  "user_id": "987654",
+  "enable": true
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": null
+}
+```
+
+## set_group_card
+
+Set a member's group card (display name).
+
+### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+<ParamField path="user_id" type="string" required>
+  Member QQ number
+</ParamField>
+
+<ParamField path="card" type="string" default="">
+  New group card (empty string to clear)
+</ParamField>
+
+### Response
+
+<ResponseField name="result" type="null">
+  Returns `null` on success
+</ResponseField>
+
+### Example
+
+```json
+// Request
+{
+  "group_id": "123456",
+  "user_id": "987654",
+  "card": "New Card Name"
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": null
+}
+```
+
+## set_group_name
+
+Set the group name.
+
+### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number
+</ParamField>
+
+<ParamField path="group_name" type="string" required>
+  New group name
+</ParamField>
+
+### Response
+
+<ResponseField name="result" type="null">
+  Returns `null` on success
+</ResponseField>
+
+### Example
+
+```json
+// Request
+{
+  "group_id": "123456",
+  "group_name": "New Group Name"
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": null
+}
+```
+
+## set_group_leave
+
+Leave a group.
+
+### Request
+
+<ParamField path="group_id" type="string" required>
+  Group number to leave
+</ParamField>
+
+<ParamField path="is_dismiss" type="boolean | string" default="false">
+  Dismiss the group (only works if bot is owner)
+</ParamField>
+
+### Response
+
+<ResponseField name="result" type="null">
+  Returns `null` on success
+</ResponseField>
+
+### Example
+
+```json
+// Request
+{
+  "group_id": "123456",
+  "is_dismiss": false
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": null
+}
+```
+
+## set_group_add_request
+
+Approve or reject a group join request.
+
+### Request
+
+<ParamField path="flag" type="string" required>
+  Request flag from group request event
+</ParamField>
+
+<ParamField path="sub_type" type="string" required>
+  Request type: `add` (join request) or `invite` (invitation)
+</ParamField>
+
+<ParamField path="approve" type="boolean | string" default="true">
+  Approve (`true`) or reject (`false`)
+</ParamField>
+
+<ParamField path="reason" type="string" default="">
+  Rejection reason (only used when rejecting)
+</ParamField>
+
+### Response
+
+<ResponseField name="result" type="null">
+  Returns `null` on success
+</ResponseField>
+
+### Example
+
+```json
+// Request - Approve
+{
+  "flag": "request_flag_12345",
+  "sub_type": "add",
+  "approve": true
+}
+
+// Request - Reject
+{
+  "flag": "request_flag_12345",
+  "sub_type": "add",
+  "approve": false,
+  "reason": "Not accepting new members"
+}
+
+// Response
+{
+  "status": "ok",
+  "retcode": 0,
+  "data": null
+}
+```
+
+## Additional Group Actions
+
+### get_group_essence
+
+Get group essence messages (pinned messages).
+
+### set_essence_msg
+
+Set a message as essence (pin it).
+
+### del_essence_msg
+
+Remove a message from essence (unpin it).
+
+### get_group_notice
+
+Get group announcements.
+
+### send_group_notice
+
+Publish a group announcement.
+
+### get_group_honor_info
+
+Get group honor information (active members, etc.).
+
+### get_group_shut_list
+
+Get list of muted members in a group.

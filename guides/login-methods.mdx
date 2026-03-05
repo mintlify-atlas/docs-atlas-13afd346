@@ -1,0 +1,484 @@
+---
+title: Login Methods
+description: Configure QQ account login using QR code, password, or quick login
+---
+
+## Overview
+
+NapCat supports multiple login methods for QQ accounts. This guide covers QR code scanning, password login, and quick login with practical code examples from the framework.
+
+## Login Flow
+
+The login process is managed by the `NodeIKernelLoginListener` which handles various login events:
+
+```typescript
+const loginListener = new NodeIKernelLoginListener();
+
+// Login event handlers
+loginListener.onQRCodeLoginSucceed = async (loginResult) => { ... }
+loginListener.onQRCodeGetPicture = ({ qrcodeUrl }) => { ... }
+loginListener.onLoginFailed = (...args) => { ... }
+loginListener.onPasswordLoginFailed = (...args) => { ... }
+```
+
+<Note>
+  The login system is implemented in `napcat.ts:92-160` and provides callback-based event handling for all login methods.
+</Note>
+
+## QR Code Login
+
+QR code login is the most secure and commonly used method.
+
+### Basic QR Code Flow
+
+<Steps>
+  <Step title="Initialize Login Service">
+    The login service connects automatically when NapCat starts:
+
+    ```typescript
+    loginListener.onLoginConnected = () => {
+      logger.log('[NapCat] [Framework] 登录服务已连接');
+      // Request QR code
+      loginService.getQRCodePicture();
+    };
+    ```
+  </Step>
+
+  <Step title="Receive QR Code">
+    When the QR code is generated, the `onQRCodeGetPicture` event fires:
+
+    ```typescript
+    loginListener.onQRCodeGetPicture = ({ qrcodeUrl }) => {
+      WebUiDataRuntime.setQQLoginQrcodeURL(qrcodeUrl);
+      logger.log('[NapCat] [Framework] 二维码已更新, URL:', qrcodeUrl);
+    };
+    ```
+
+    The `qrcodeUrl` is a data URL that can be displayed directly in the WebUI.
+  </Step>
+
+  <Step title="User Scans QR Code">
+    When a user scans the QR code with their phone:
+
+    ```typescript
+    loginListener.onQRCodeSessionUserScaned = () => {
+      logger.log('[NapCat] [Framework] 二维码已被扫描，等待确认...');
+    };
+    ```
+  </Step>
+
+  <Step title="Login Success">
+    After the user confirms on their phone:
+
+    ```typescript
+    loginListener.onQRCodeLoginSucceed = async (loginResult) => {
+      loginContext.isLogined = true;
+      WebUiDataRuntime.setQQLoginStatus(true);
+      WebUiDataRuntime.setQQLoginError('');
+      
+      await new Promise<void>(resolve => {
+        registerInitCallback(() => resolve());
+      });
+      
+      resolve({
+        uid: loginResult.uid,
+        uin: loginResult.uin,
+        nick: '', // Not available in QR login
+        online: true,
+      });
+    };
+    ```
+  </Step>
+</Steps>
+
+### Handle QR Code Expiration
+
+QR codes expire after a certain time:
+
+```typescript
+loginListener.onQRCodeSessionFailed = (errType: number, errCode: number) => {
+  if (!loginContext.isLogined) {
+    logger.logError('[NapCat] [Framework] [Login] QRCode Session Failed, ErrType:', errType, 'ErrCode:', errCode);
+    
+    if (errType === 1 && errCode === 3) {
+      WebUiDataRuntime.setQQLoginError('二维码已过期，请刷新');
+    }
+  }
+};
+```
+
+### Refresh QR Code
+
+Implement QR code refresh functionality:
+
+```typescript
+WebUiDataRuntime.setRefreshQRCodeCallback(async () => {
+  loginService.getQRCodePicture();
+});
+```
+
+## Password Login
+
+Password login requires MD5-hashed password and may need additional verification.
+
+### Basic Password Login
+
+<Steps>
+  <Step title="Prepare Login Data">
+    ```typescript
+    const loginData = {
+      uin: '123456789',
+      passwordMd5: 'md5_hashed_password',
+      step: 0,  // Initial step
+      newDeviceLoginSig: new Uint8Array(),
+      proofWaterSig: new Uint8Array(),
+      proofWaterRand: new Uint8Array(),
+      proofWaterSid: new Uint8Array(),
+      unusualDeviceCheckSig: new Uint8Array(),
+    };
+    ```
+  </Step>
+
+  <Step title="Execute Password Login">
+    From `napcat.ts:244-276`:
+
+    ```typescript
+    WebUiDataRuntime.setPasswordLoginCall(async (uin: string, passwordMd5: string) => {
+      return await new Promise((resolve) => {
+        if (!uin || !passwordMd5) {
+          return resolve({ 
+            result: false, 
+            message: '密码登录失败：参数不完整' 
+          });
+        }
+        
+        logger.log('[NapCat] [Framework] 正在密码登录', uin);
+        
+        loginService.passwordLogin({
+          uin,
+          passwordMd5,
+          step: 0,
+          newDeviceLoginSig: new Uint8Array(),
+          proofWaterSig: new Uint8Array(),
+          proofWaterRand: new Uint8Array(),
+          proofWaterSid: new Uint8Array(),
+          unusualDeviceCheckSig: new Uint8Array(),
+        }).then(res => {
+          // Handle response
+        });
+      });
+    });
+    ```
+  </Step>
+</Steps>
+
+### Handle CAPTCHA Verification
+
+If Tencent requires CAPTCHA verification:
+
+```typescript
+loginService.passwordLogin(loginData).then(res => {
+  // CAPTCHA required
+  if (res.result === '140022008') {
+    const proofWaterUrl = res.loginErrorInfo?.proofWaterUrl || '';
+    resolve({ 
+      result: false, 
+      message: '需要验证码', 
+      needCaptcha: true, 
+      proofWaterUrl 
+    });
+  }
+});
+```
+
+### CAPTCHA Login (Step 2)
+
+After user completes CAPTCHA:
+
+```typescript
+WebUiDataRuntime.setCaptchaLoginCall(async (
+  uin: string, 
+  passwordMd5: string, 
+  ticket: string, 
+  randstr: string, 
+  sid: string
+) => {
+  return await new Promise((resolve) => {
+    loginService.passwordLogin({
+      uin,
+      passwordMd5,
+      step: 1,  // CAPTCHA verification step
+      newDeviceLoginSig: new Uint8Array(),
+      proofWaterSig: new TextEncoder().encode(ticket),
+      proofWaterRand: new TextEncoder().encode(randstr),
+      proofWaterSid: new TextEncoder().encode(sid),
+      unusualDeviceCheckSig: new Uint8Array(),
+    }).then(res => {
+      if (res.result === '0') {
+        loginContext.isLogined = true;
+        WebUiDataRuntime.setQQLoginStatus(true);
+        resolve({ result: true, message: '' });
+      } else {
+        const errMsg = res.loginErrorInfo?.errMsg || '验证码登录失败';
+        resolve({ result: false, message: errMsg });
+      }
+    });
+  });
+});
+```
+
+### New Device Verification
+
+For new or unusual devices:
+
+```typescript
+loginService.passwordLogin(loginData).then(res => {
+  // New device verification required
+  if (res.result === '140022010' || res.result === '140022011') {
+    const jumpUrl = res.loginErrorInfo?.jumpUrl || '';
+    const newDevicePullQrCodeSig = res.loginErrorInfo?.newDevicePullQrCodeSig || '';
+    
+    resolve({ 
+      result: false, 
+      message: '新设备需要扫码验证', 
+      needNewDevice: true, 
+      jumpUrl, 
+      newDevicePullQrCodeSig 
+    });
+  }
+});
+```
+
+### New Device Login (Step 3)
+
+```typescript
+WebUiDataRuntime.setNewDeviceLoginCall(async (
+  uin: string, 
+  passwordMd5: string, 
+  newDevicePullQrCodeSig: string
+) => {
+  return await new Promise((resolve) => {
+    loginService.passwordLogin({
+      uin,
+      passwordMd5,
+      step: 2,  // New device verification step
+      newDeviceLoginSig: new TextEncoder().encode(newDevicePullQrCodeSig),
+      proofWaterSig: new Uint8Array(),
+      proofWaterRand: new Uint8Array(),
+      proofWaterSid: new Uint8Array(),
+      unusualDeviceCheckSig: new Uint8Array(),
+    }).then(res => {
+      if (res.result === '0') {
+        loginContext.isLogined = true;
+        resolve({ result: true, message: '' });
+      }
+    });
+  });
+});
+```
+
+## Quick Login
+
+Quick login allows re-authentication with previously logged-in accounts.
+
+### Get Login List
+
+Retrieve the list of accounts that support quick login:
+
+```typescript
+loginListener.onLoginConnected = () => {
+  // Get historical login list for WebUI
+  loginService.getLoginList().then((res) => {
+    const list = res.LocalLoginInfoList.filter((item) => item.isQuickLogin);
+    WebUiDataRuntime.setQQQuickLoginList(list.map((item) => item.uin.toString()));
+    WebUiDataRuntime.setQQNewLoginList(list);
+  }).catch(e => logger.logError('[NapCat] [Framework] 获取登录列表失败:', e));
+};
+```
+
+### Execute Quick Login
+
+From `napcat.ts:211-235`:
+
+```typescript
+WebUiDataRuntime.setQuickLoginCall(async (uin: string) => {
+  return await new Promise((resolve) => {
+    if (!uin) {
+      return resolve({ result: false, message: '快速登录失败' });
+    }
+    
+    logger.log('[NapCat] [Framework] 正在快速登录', uin);
+    
+    loginService.quickLoginWithUin(uin).then(res => {
+      const success = res.result === '0' && !res.loginErrorInfo?.errMsg;
+      
+      if (!success) {
+        const errMsg = res.loginErrorInfo?.errMsg || 
+                       `快速登录失败，错误码: ${res.result}`;
+        WebUiDataRuntime.setQQLoginError(errMsg);
+        resolve({ result: false, message: errMsg });
+      } else {
+        loginContext.isLogined = true;
+        WebUiDataRuntime.setQQLoginStatus(true);
+        WebUiDataRuntime.setQQLoginError('');
+        resolve({ result: true, message: '' });
+      }
+    }).catch((e) => {
+      logger.logError('[NapCat] [Framework] 快速登录异常:', e);
+      resolve({ result: false, message: '快速登录发生错误' });
+    });
+  });
+});
+```
+
+## Handle Login Failures
+
+Implement comprehensive error handling:
+
+```typescript
+loginListener.onLoginFailed = (...args) => {
+  const errInfo = JSON.stringify(args);
+  logger.logError('[NapCat] [Framework] [Login] Login Failed, ErrInfo:', errInfo);
+  WebUiDataRuntime.setQQLoginError(`登录失败: ${errInfo}`);
+};
+
+loginListener.onPasswordLoginFailed = (...args) => {
+  logger.logError('[NapCat] [Framework] 密码登录失败:', ...args);
+};
+```
+
+## Check Existing Login
+
+Prevent duplicate logins:
+
+```typescript
+loginListener.onUserLoggedIn = (userid: string) => {
+  const tips = `当前账号(${userid})已登录,无法重复登录`;
+  logger.logError(tips);
+  WebUiDataRuntime.setQQLoginError(tips);
+};
+```
+
+<Warning>
+  Always handle login errors gracefully and provide clear feedback to users. Password login may trigger additional security verifications.
+</Warning>
+
+## Complete Login Example
+
+<CodeGroup>
+```typescript QR Code Login
+// Initialize login listener
+const loginListener = new NodeIKernelLoginListener();
+
+// QR code received
+loginListener.onQRCodeGetPicture = ({ qrcodeUrl }) => {
+  console.log('QR Code URL:', qrcodeUrl);
+  // Display QR code to user
+};
+
+// QR code scanned
+loginListener.onQRCodeSessionUserScaned = () => {
+  console.log('QR code scanned, waiting for confirmation...');
+};
+
+// Login successful
+loginListener.onQRCodeLoginSucceed = async (result) => {
+  console.log('Login successful!', result.uid, result.uin);
+};
+
+// Register listener
+loginService.addKernelLoginListener(loginListener);
+
+// Request QR code
+loginService.getQRCodePicture();
+```
+
+```typescript Password Login
+// Password login with full verification flow
+async function passwordLogin(uin: string, passwordMd5: string) {
+  const result = await loginService.passwordLogin({
+    uin,
+    passwordMd5,
+    step: 0,
+    newDeviceLoginSig: new Uint8Array(),
+    proofWaterSig: new Uint8Array(),
+    proofWaterRand: new Uint8Array(),
+    proofWaterSid: new Uint8Array(),
+    unusualDeviceCheckSig: new Uint8Array(),
+  });
+
+  if (result.result === '0') {
+    console.log('Login successful!');
+    return { success: true };
+  }
+
+  // Handle CAPTCHA
+  if (result.result === '140022008') {
+    return {
+      success: false,
+      needCaptcha: true,
+      captchaUrl: result.loginErrorInfo?.proofWaterUrl
+    };
+  }
+
+  // Handle new device
+  if (result.result === '140022010' || result.result === '140022011') {
+    return {
+      success: false,
+      needNewDevice: true,
+      jumpUrl: result.loginErrorInfo?.jumpUrl,
+      sig: result.loginErrorInfo?.newDevicePullQrCodeSig
+    };
+  }
+
+  return {
+    success: false,
+    error: result.loginErrorInfo?.errMsg
+  };
+}
+```
+
+```typescript Quick Login
+// Get available accounts
+const loginList = await loginService.getLoginList();
+const quickLoginAccounts = loginList.LocalLoginInfoList
+  .filter(item => item.isQuickLogin)
+  .map(item => item.uin.toString());
+
+console.log('Available accounts:', quickLoginAccounts);
+
+// Quick login
+async function quickLogin(uin: string) {
+  const result = await loginService.quickLoginWithUin(uin);
+  
+  if (result.result === '0' && !result.loginErrorInfo?.errMsg) {
+    console.log('Quick login successful!');
+    return { success: true };
+  }
+  
+  return {
+    success: false,
+    error: result.loginErrorInfo?.errMsg || `Error code: ${result.result}`
+  };
+}
+```
+</CodeGroup>
+
+## Best Practices
+
+1. **Prefer QR Code Login**: Most secure and requires no password handling
+2. **Hash Passwords**: Always use MD5-hashed passwords, never plain text
+3. **Handle All Error Cases**: Implement handlers for CAPTCHA and device verification
+4. **Timeout Management**: Set appropriate timeouts for login operations
+5. **State Management**: Track login state to prevent duplicate attempts
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Message Handling" icon="message" href="/guides/message-handling">
+    Learn how to send and receive messages
+  </Card>
+  <Card title="Deployment" icon="server" href="/guides/deployment">
+    Deploy NapCat in production
+  </Card>
+</CardGroup>

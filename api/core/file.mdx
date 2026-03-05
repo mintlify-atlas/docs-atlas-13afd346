@@ -1,0 +1,527 @@
+---
+title: File API
+description: NTQQFileApi methods for file upload, download, and management
+---
+
+## Overview
+
+The `NTQQFileApi` class provides methods for uploading, downloading, and managing files, including images, videos, audio, and documents.
+
+## File Upload
+
+### uploadFile
+
+Upload a file and get its metadata.
+
+```typescript
+async uploadFile(
+  filePath: string,
+  elementType: ElementType = ElementType.PIC,
+  elementSubType: number = 0,
+  uploadGroupFile: boolean = true
+): Promise<{
+  md5: string;
+  fileName: string;
+  path: string;
+  fileSize: number;
+  ext: string;
+}>
+```
+
+<ParamField path="filePath" type="string" required>
+  Path to file to upload
+</ParamField>
+
+<ParamField path="elementType" type="ElementType" default="ElementType.PIC">
+  Type of element (PIC, VIDEO, PTT, FILE, etc.)
+</ParamField>
+
+<ParamField path="elementSubType" type="number" default="0">
+  Element subtype
+</ParamField>
+
+<ParamField path="uploadGroupFile" type="boolean" default="true">
+  Whether to upload as group file
+</ParamField>
+
+<ResponseField name="return" type="object">
+  Object containing file metadata:
+  - `md5`: File MD5 hash
+  - `fileName`: File name
+  - `path`: File path
+  - `fileSize`: File size in bytes
+  - `ext`: File extension
+</ResponseField>
+
+**Example:**
+
+```typescript
+const fileInfo = await core.apis.FileApi.uploadFile(
+  '/path/to/image.png',
+  ElementType.PIC
+);
+
+console.log('MD5:', fileInfo.md5);
+console.log('Size:', fileInfo.fileSize, 'bytes');
+```
+
+## File Download
+
+### downloadMedia
+
+Download media from a message.
+
+```typescript
+async downloadMedia(
+  msgId: string,
+  chatType: ChatType,
+  peerUid: string,
+  elementId: string,
+  thumbPath: string,
+  sourcePath: string,
+  timeout: number = 120000,
+  force: boolean = false
+): Promise<string>
+```
+
+<ParamField path="msgId" type="string" required>
+  Message ID containing the media
+</ParamField>
+
+<ParamField path="chatType" type="ChatType" required>
+  Chat type (group/private)
+</ParamField>
+
+<ParamField path="peerUid" type="string" required>
+  Peer UID
+</ParamField>
+
+<ParamField path="elementId" type="string" required>
+  Element ID of the media
+</ParamField>
+
+<ParamField path="thumbPath" type="string" required>
+  Thumbnail path
+</ParamField>
+
+<ParamField path="sourcePath" type="string" required>
+  Source file path
+</ParamField>
+
+<ParamField path="timeout" type="number" default="120000">
+  Download timeout in milliseconds
+</ParamField>
+
+<ParamField path="force" type="boolean" default="false">
+  Force re-download even if file exists
+</ParamField>
+
+<ResponseField name="return" type="string">
+  Path to downloaded file
+</ResponseField>
+
+**Example:**
+
+```typescript
+const filePath = await core.apis.FileApi.downloadMedia(
+  msg.msgId,
+  ChatType.KCHATTYPEGROUP,
+  '123456789',
+  element.elementId,
+  '',
+  '',
+  60000
+);
+
+console.log('Downloaded to:', filePath);
+```
+
+### downloadRawMsgMedia
+
+Download all media elements from raw messages.
+
+```typescript
+async downloadRawMsgMedia(
+  msg: RawMessage[]
+): Promise<string[]>
+```
+
+<ParamField path="msg" type="RawMessage[]" required>
+  Array of raw messages
+</ParamField>
+
+<ResponseField name="return" type="string[]">
+  Array of file paths to downloaded media
+</ResponseField>
+
+**Example:**
+
+```typescript
+const messages = await core.apis.MsgApi.getMsgHistory(peer, '0', 10);
+const files = await core.apis.FileApi.downloadRawMsgMedia(messages.msgList);
+
+console.log(`Downloaded ${files.length} files`);
+files.forEach(file => console.log(file));
+```
+
+### downloadFileForModelId
+
+Download file using model ID.
+
+```typescript
+async downloadFileForModelId(
+  peer: Peer,
+  modelId: string,
+  unknown: string,
+  timeout: number = 120000
+): Promise<string>
+```
+
+<ParamField path="peer" type="Peer" required>
+  Peer object
+</ParamField>
+
+<ParamField path="modelId" type="string" required>
+  File model ID
+</ParamField>
+
+<ParamField path="unknown" type="string" required>
+  Additional parameter
+</ParamField>
+
+<ParamField path="timeout" type="number" default="120000">
+  Timeout in milliseconds
+</ParamField>
+
+<ResponseField name="return" type="string">
+  Downloaded file path
+</ResponseField>
+
+### downloadFileById
+
+Download file by file ID.
+
+```typescript
+async downloadFileById(
+  fileId: string,
+  fileSize: number = 1024576,
+  estimatedTime: number = (fileSize * 1000 / 1024576) + 5000
+): Promise<string>
+```
+
+<ParamField path="fileId" type="string" required>
+  File ID to download
+</ParamField>
+
+<ParamField path="fileSize" type="number" default="1024576">
+  Expected file size in bytes
+</ParamField>
+
+<ParamField path="estimatedTime" type="number">
+  Estimated download time in milliseconds (auto-calculated)
+</ParamField>
+
+<ResponseField name="return" type="string">
+  Downloaded file path
+</ResponseField>
+
+## File URLs
+
+### getFileUrl
+
+Get download URL for a file.
+
+```typescript
+async getFileUrl(
+  chatType: ChatType,
+  peer: string,
+  fileUUID?: string,
+  file10MMd5?: string,
+  timeout: number = 5000
+): Promise<string>
+```
+
+<ParamField path="chatType" type="ChatType" required>
+  Chat type (group/private)
+</ParamField>
+
+<ParamField path="peer" type="string" required>
+  Peer ID
+</ParamField>
+
+<ParamField path="fileUUID" type="string">
+  File UUID
+</ParamField>
+
+<ParamField path="file10MMd5" type="string">
+  File MD5 (for files < 10MB)
+</ParamField>
+
+<ParamField path="timeout" type="number" default="5000">
+  Request timeout in milliseconds
+</ParamField>
+
+<ResponseField name="return" type="string">
+  File download URL
+</ResponseField>
+
+**Example:**
+
+```typescript
+const url = await core.apis.FileApi.getFileUrl(
+  ChatType.KCHATTYPEGROUP,
+  '123456789',
+  fileElement.fileUuid
+);
+
+console.log('Download URL:', url);
+```
+
+### getPttUrl
+
+Get download URL for voice/audio file.
+
+```typescript
+async getPttUrl(
+  peer: string,
+  fileUUID?: string,
+  timeout: number = 5000
+): Promise<string>
+```
+
+<ParamField path="peer" type="string" required>
+  Peer ID
+</ParamField>
+
+<ParamField path="fileUUID" type="string">
+  File UUID
+</ParamField>
+
+<ParamField path="timeout" type="number" default="5000">
+  Request timeout
+</ParamField>
+
+<ResponseField name="return" type="string">
+  PTT (voice) file URL
+</ResponseField>
+
+### getVideoUrl
+
+Get playback URL for video.
+
+```typescript
+async getVideoUrl(
+  peer: Peer,
+  msgId: string,
+  elementId: string
+): Promise<string>
+```
+
+<ParamField path="peer" type="Peer" required>
+  Peer object
+</ParamField>
+
+<ParamField path="msgId" type="string" required>
+  Message ID
+</ParamField>
+
+<ParamField path="elementId" type="string" required>
+  Video element ID
+</ParamField>
+
+<ResponseField name="return" type="string">
+  Video playback URL
+</ResponseField>
+
+### getVideoUrlPacket
+
+Get video URL using packet API.
+
+```typescript
+async getVideoUrlPacket(
+  peer: string,
+  fileUUID?: string,
+  timeout: number = 5000
+): Promise<string>
+```
+
+<ParamField path="peer" type="string" required>
+  Peer ID
+</ParamField>
+
+<ParamField path="fileUUID" type="string">
+  File UUID
+</ParamField>
+
+<ParamField path="timeout" type="number" default="5000">
+  Request timeout
+</ParamField>
+
+## Image URLs
+
+### getImageUrl
+
+Get image URL from picture element.
+
+```typescript
+async getImageUrl(element: PicElement): Promise<string>
+```
+
+<ParamField path="element" type="PicElement" required>
+  Picture element from message
+</ParamField>
+
+<ResponseField name="return" type="string">
+  Image URL
+</ResponseField>
+
+**Example:**
+
+```typescript
+const picElement = msg.elements.find(e => e.picElement)?.picElement;
+if (picElement) {
+  const imageUrl = await core.apis.FileApi.getImageUrl(picElement);
+  console.log('Image URL:', imageUrl);
+}
+```
+
+## File Search
+
+### searchForFile
+
+Search for files by keywords.
+
+```typescript
+async searchForFile(
+  keys: string[]
+): Promise<SearchResultItem | undefined>
+```
+
+<ParamField path="keys" type="string[]" required>
+  Array of search keywords
+</ParamField>
+
+<ResponseField name="return" type="SearchResultItem | undefined">
+  First matching search result
+</ResponseField>
+
+**Example:**
+
+```typescript
+const result = await core.apis.FileApi.searchForFile(['document', 'pdf']);
+if (result) {
+  console.log('Found file:', result.fileName);
+  console.log('File ID:', result.fileId);
+}
+```
+
+## File Utilities
+
+### copyFile
+
+Copy a file to another location.
+
+```typescript
+async copyFile(filePath: string, destPath: string)
+```
+
+<ParamField path="filePath" type="string" required>
+  Source file path
+</ParamField>
+
+<ParamField path="destPath" type="string" required>
+  Destination file path
+</ParamField>
+
+### getFileSize
+
+Get size of a file.
+
+```typescript
+async getFileSize(filePath: string): Promise<number>
+```
+
+<ParamField path="filePath" type="string" required>
+  Path to file
+</ParamField>
+
+<ResponseField name="return" type="number">
+  File size in bytes
+</ResponseField>
+
+**Example:**
+
+```typescript
+const size = await core.apis.FileApi.getFileSize('/path/to/file.pdf');
+console.log(`File size: ${(size / 1024 / 1024).toFixed(2)} MB`);
+```
+
+## Complete Example: File Upload and Download
+
+```typescript
+import { NapCatCore } from '@/napcat-core';
+import { ChatType, ElementType } from '@/napcat-core/types';
+
+async function handleFileOperations(core: NapCatCore) {
+  // Upload an image
+  const imageInfo = await core.apis.FileApi.uploadFile(
+    '/path/to/image.jpg',
+    ElementType.PIC
+  );
+  
+  console.log('Uploaded image:');
+  console.log('  MD5:', imageInfo.md5);
+  console.log('  Size:', imageInfo.fileSize, 'bytes');
+  
+  // Send the image in a message
+  const peer = {
+    chatType: ChatType.KCHATTYPEGROUP,
+    peerUid: '123456789',
+  };
+  
+  const msg = await core.apis.MsgApi.sendMsg(peer, [{
+    picElement: {
+      md5HexStr: imageInfo.md5,
+      fileSize: imageInfo.fileSize,
+      sourcePath: imageInfo.path,
+      fileName: imageInfo.fileName,
+    }
+  }]);
+  
+  // Later, download media from messages
+  const history = await core.apis.MsgApi.getMsgHistory(peer, '0', 10);
+  const mediaFiles = await core.apis.FileApi.downloadRawMsgMedia(
+    history.msgList
+  );
+  
+  console.log(`\nDownloaded ${mediaFiles.length} media files:`);
+  mediaFiles.forEach((file, i) => {
+    console.log(`  ${i + 1}. ${file}`);
+  });
+  
+  // Search for files
+  const searchResult = await core.apis.FileApi.searchForFile(['report']);
+  if (searchResult) {
+    console.log('\nFound file:', searchResult.fileName);
+    
+    // Download the found file
+    const downloadPath = await core.apis.FileApi.downloadFileById(
+      searchResult.fileId,
+      searchResult.fileSize
+    );
+    
+    console.log('Downloaded to:', downloadPath);
+  }
+}
+
+// Usage
+handleFileOperations(core).catch(console.error);
+```
+
+## Notes
+
+- File operations may have size limits imposed by QQ servers
+- Large file downloads should use appropriate timeout values
+- The RKey (resource key) is automatically managed for file URLs
+- Some file operations require packet API to be enabled
+- Downloaded files are typically stored in NTQQ's cache directory

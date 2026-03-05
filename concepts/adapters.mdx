@@ -1,0 +1,632 @@
+---
+title: 'Network Adapters'
+description: 'Configure HTTP, WebSocket, and reverse connection adapters in NapCat'
+icon: 'plug'
+---
+
+## Overview
+
+NapCat uses a flexible adapter system to communicate with external applications. The `NapCatAdapterManager` manages multiple protocol adapters, each supporting different network communication patterns.
+
+```typescript
+export class NapCatAdapterManager {
+  private core: NapCatCore;
+  private context: InstanceContext;
+  private pathWrapper: NapCatPathWrapper;
+  
+  private adapters: Map<string, IProtocolAdapter> = new Map();
+}
+```
+
+Source: `packages/napcat-adapter/index.ts:70`
+
+## Adapter Types
+
+NapCat supports two main protocol adapters:
+
+<CardGroup cols={2}>
+  <Card title="OneBot 11" icon="robot">
+    Standard OneBot 11 protocol implementation
+  </Card>
+  <Card title="NapCat Protocol" icon="code">
+    Native NapCat protocol (optional)
+  </Card>
+</CardGroup>
+
+### Initialization
+
+```typescript
+async initAdapters(): Promise<void> {
+  this.context.logger.log('[AdapterManager] Starting adapter initialization...');
+  
+  // Initialize OneBot11 adapter (always enabled)
+  const onebot = new NapCatOneBot11Adapter(this.core, this.context, this.pathWrapper);
+  this.onebotAdapter = new OneBotAdapterWrapper(onebot);
+  this.adapters.set('onebot11', this.onebotAdapter);
+  await this.onebotAdapter.init();
+  
+  // Initialize NapCat Protocol adapter (optional)
+  const napcatProtocol = new NapCatProtocolAdapter(this.core, this.context, this.pathWrapper);
+  this.napcatProtocolAdapter = new NapCatProtocolAdapterWrapper(napcatProtocol);
+  this.adapters.set('napcat-protocol', this.napcatProtocolAdapter);
+  
+  if (this.napcatProtocolAdapter.enabled) {
+    await this.napcatProtocolAdapter.init();
+  }
+}
+```
+
+Source: `packages/napcat-adapter/index.ts:89`
+
+## OneBot Network Adapters
+
+The OneBot adapter supports multiple network transport types:
+
+### OB11NetworkManager
+
+Manages all OneBot network adapters:
+
+```typescript
+export class OB11NetworkManager {
+  adapters: Map<string, IOB11NetworkAdapter<NetworkAdapterConfig>> = new Map();
+  
+  async openAllAdapters() {
+    return Promise.all(
+      Array.from(this.adapters.values()).map(adapter => adapter.open())
+    );
+  }
+  
+  async emitEvent(event: OneBotEvent | OB11Message) {
+    return Promise.all(
+      Array.from(this.adapters.values()).map(async adapter => {
+        if (adapter.isActive) {
+          return await adapter.onEvent(event);
+        }
+      })
+    );
+  }
+}
+```
+
+Source: `packages/napcat-onebot/network/index.ts:15`
+
+### HTTP Server
+
+<Info>
+  HTTP Server adapter listens for incoming POST requests with OneBot actions.
+</Info>
+
+**Configuration:**
+
+```json
+{
+  "network": {
+    "httpServers": [
+      {
+        "name": "http-server-main",
+        "enable": true,
+        "host": "127.0.0.1",
+        "port": 3000,
+        "secret": "your_secret_token",
+        "enableHeart": true,
+        "enablePost": true,
+        "messagePostFormat": "array",
+        "reportSelfMessage": false
+      }
+    ]
+  }
+}
+```
+
+**Features:**
+- RESTful API endpoint
+- Action execution via POST requests
+- Event push to callback URLs
+- Secret token authentication
+- Heartbeat support
+
+**Usage:**
+
+```bash
+# Send message
+curl -X POST http://127.0.0.1:3000/send_msg \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your_secret_token" \
+  -d '{
+    "message_type": "group",
+    "group_id": 123456789,
+    "message": "Hello World"
+  }'
+```
+
+### WebSocket Server
+
+<Info>
+  WebSocket Server allows clients to connect and maintain bidirectional communication.
+</Info>
+
+**Configuration:**
+
+```json
+{
+  "network": {
+    "websocketServers": [
+      {
+        "name": "ws-server-main",
+        "enable": true,
+        "host": "127.0.0.1",
+        "port": 3001,
+        "heartInterval": 30000,
+        "messagePostFormat": "array"
+      }
+    ]
+  }
+}
+```
+
+**Features:**
+- Real-time bidirectional communication
+- Event streaming
+- Action execution
+- Automatic reconnection support
+- Heartbeat mechanism
+
+**Usage:**
+
+```javascript
+const ws = new WebSocket('ws://127.0.0.1:3001');
+
+ws.on('open', () => {
+  // Send action
+  ws.send(JSON.stringify({
+    action: 'send_msg',
+    params: {
+      message_type: 'group',
+      group_id: 123456789,
+      message: 'Hello via WebSocket'
+    }
+  }));
+});
+
+ws.on('message', (data) => {
+  const event = JSON.parse(data);
+  console.log('Received event:', event);
+});
+```
+
+### HTTP Client (Reverse HTTP)
+
+<Info>
+  HTTP Client pushes events to a remote URL via POST requests.
+</Info>
+
+**Configuration:**
+
+```json
+{
+  "network": {
+    "httpClients": [
+      {
+        "name": "http-client-1",
+        "enable": true,
+        "url": "http://your-server.com/onebot/events",
+        "secret": "your_secret_token",
+        "timeout": 5000,
+        "messagePostFormat": "array"
+      }
+    ]
+  }
+}
+```
+
+**Features:**
+- Push events to remote endpoint
+- No inbound connections required
+- Secret token in headers
+- Configurable timeout
+- Automatic retry on failure
+
+**Server-side handler:**
+
+```javascript
+app.post('/onebot/events', (req, res) => {
+  const secret = req.headers['authorization'];
+  if (secret !== 'Bearer your_secret_token') {
+    return res.status(401).send('Unauthorized');
+  }
+  
+  const event = req.body;
+  console.log('Received event:', event);
+  
+  // Respond with quick action (optional)
+  if (event.post_type === 'message') {
+    res.json({
+      reply: 'Auto reply message'
+    });
+  } else {
+    res.json({});
+  }
+});
+```
+
+### WebSocket Client (Reverse WebSocket)
+
+<Info>
+  WebSocket Client connects to a remote WebSocket server.
+</Info>
+
+**Configuration:**
+
+```json
+{
+  "network": {
+    "websocketClients": [
+      {
+        "name": "ws-client-1",
+        "enable": true,
+        "url": "ws://your-server.com/onebot",
+        "reconnectInterval": 5000,
+        "heartInterval": 30000,
+        "messagePostFormat": "array"
+      }
+    ]
+  }
+}
+```
+
+**Features:**
+- Connect to remote WebSocket server
+- Event streaming
+- Receive actions from server
+- Automatic reconnection
+- Heartbeat mechanism
+
+**Server-side handler:**
+
+```javascript
+const wss = new WebSocketServer({ port: 3002 });
+
+wss.on('connection', (ws) => {
+  console.log('NapCat connected');
+  
+  // Receive events
+  ws.on('message', (data) => {
+    const event = JSON.parse(data);
+    console.log('Received event:', event);
+  });
+  
+  // Send action
+  ws.send(JSON.stringify({
+    action: 'send_msg',
+    params: {
+      message_type: 'group',
+      group_id: 123456789,
+      message: 'Hello from server'
+    },
+    echo: 'request-id-123'
+  }));
+});
+```
+
+### HTTP SSE Server
+
+<Info>
+  Server-Sent Events for one-way event streaming over HTTP.
+</Info>
+
+**Configuration:**
+
+```json
+{
+  "network": {
+    "httpSseServers": [
+      {
+        "name": "sse-server-1",
+        "enable": true,
+        "host": "127.0.0.1",
+        "port": 3002,
+        "messagePostFormat": "array"
+      }
+    ]
+  }
+}
+```
+
+**Features:**
+- Server-Sent Events (SSE)
+- Event streaming over HTTP
+- Automatic reconnection by browser
+- Actions via separate POST endpoint
+
+**Usage:**
+
+```javascript
+// Listen to events
+const eventSource = new EventSource('http://127.0.0.1:3002/sse');
+
+eventSource.addEventListener('message', (event) => {
+  const data = JSON.parse(event.data);
+  console.log('Received event:', data);
+});
+
+// Send actions via POST
+fetch('http://127.0.0.1:3002/send_msg', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    message_type: 'group',
+    group_id: 123456789,
+    message: 'Hello via SSE'
+  })
+});
+```
+
+## Configuration Options
+
+### Common Options
+
+All adapter configs support:
+
+```typescript
+interface NetworkAdapterConfig {
+  name: string;                // Unique adapter identifier
+  enable: boolean;             // Enable/disable adapter
+  messagePostFormat: 'string' | 'array'; // Message format
+  reportSelfMessage: boolean;  // Report bot's own messages
+  debug: boolean;              // Include raw message in events
+}
+```
+
+### Server-Specific Options
+
+```typescript
+interface ServerConfig extends NetworkAdapterConfig {
+  host: string;                // Bind host
+  port: number;                // Listen port
+  secret?: string;             // Authentication secret
+  enableHeart?: boolean;       // Enable heartbeat
+  heartInterval?: number;      // Heartbeat interval (ms)
+}
+```
+
+### Client-Specific Options
+
+```typescript
+interface ClientConfig extends NetworkAdapterConfig {
+  url: string;                 // Remote URL
+  secret?: string;             // Authentication secret
+  timeout?: number;            // Request timeout (ms)
+  reconnectInterval?: number;  // Reconnect interval (ms)
+  heartInterval?: number;      // Heartbeat interval (ms)
+}
+```
+
+## Dynamic Configuration
+
+Adapters support hot-reloading without restart:
+
+```typescript
+// Update configuration
+WebUiDataRuntime.setOnOB11ConfigChanged(async (newConfig) => {
+  const prev = this.configLoader.configData;
+  this.configLoader.save(newConfig);
+  await this.reloadNetwork(prev, newConfig);
+});
+
+// Reload network adapters
+private async reloadNetwork(prev: OneBotConfig, now: OneBotConfig) {
+  // Compare configs and add/remove/update adapters
+  await this.handleConfigChange(prev.network.httpServers, now.network.httpServers);
+  await this.handleConfigChange(prev.network.websocketServers, now.network.websocketServers);
+  // ... other adapter types
+}
+```
+
+Source: `packages/napcat-onebot/index.ts:227`
+
+### Reload Types
+
+```typescript
+export enum OB11NetworkReloadType {
+  Normal = 0,           // No change
+  ConfigChange = 1,     // Config updated
+  NetWorkReload = 2,    // Adapter reloaded
+  NetWorkClose = 3,     // Adapter closed
+  NetWorkOpen = 4,      // Adapter opened
+}
+```
+
+Source: `packages/napcat-onebot/network/index.ts:7`
+
+## Multi-Adapter Setup
+
+You can run multiple adapters simultaneously:
+
+```json
+{
+  "network": {
+    "httpServers": [
+      {
+        "name": "http-internal",
+        "enable": true,
+        "host": "127.0.0.1",
+        "port": 3000
+      },
+      {
+        "name": "http-external",
+        "enable": true,
+        "host": "0.0.0.0",
+        "port": 8080,
+        "secret": "production-token"
+      }
+    ],
+    "websocketServers": [
+      {
+        "name": "ws-main",
+        "enable": true,
+        "host": "127.0.0.1",
+        "port": 3001
+      }
+    ],
+    "httpClients": [
+      {
+        "name": "reverse-http-1",
+        "enable": true,
+        "url": "http://app1.example.com/webhook"
+      },
+      {
+        "name": "reverse-http-2",
+        "enable": true,
+        "url": "http://app2.example.com/webhook"
+      }
+    ]
+  }
+}
+```
+
+<Tip>
+  Each adapter receives **all** events. Use adapter names and configurations to route events to different applications.
+</Tip>
+
+## Security Considerations
+
+<Warning>
+  Always use secret tokens in production environments.
+</Warning>
+
+### Secret Token Authentication
+
+```json
+{
+  "secret": "your-secret-token-here"
+}
+```
+
+The secret is sent in the `Authorization` header:
+
+```
+Authorization: Bearer your-secret-token-here
+```
+
+Validate on your server:
+
+```javascript
+const authHeader = req.headers['authorization'];
+const expectedAuth = 'Bearer your-secret-token-here';
+
+if (authHeader !== expectedAuth) {
+  return res.status(401).json({ error: 'Unauthorized' });
+}
+```
+
+### Network Isolation
+
+- Bind to `127.0.0.1` for local-only access
+- Use `0.0.0.0` only when external access is needed
+- Place behind reverse proxy (nginx, Caddy) for production
+- Use HTTPS/WSS for encrypted communication
+
+## Monitoring & Debugging
+
+### Enable Debug Mode
+
+```json
+{
+  "debug": true
+}
+```
+
+This includes raw message data in events:
+
+```json
+{
+  "post_type": "message",
+  "message_type": "group",
+  "message": "Hello",
+  "raw": {
+    // Full raw message object from NTQQ
+  }
+}
+```
+
+### Check Active Adapters
+
+```typescript
+const activeAdapters = networkManager.getEnabledAdapters();
+console.log('Active adapters:', activeAdapters.map(a => a.name));
+
+const hasActive = networkManager.hasActiveAdapters();
+console.log('Has active adapters:', hasActive);
+```
+
+### Adapter Lifecycle
+
+```typescript
+// Open all adapters
+await networkManager.openAllAdapters();
+
+// Close specific adapter
+await adapterManager.closeAdapter('http-server-1');
+
+// Reload adapter
+await adapterManager.reloadAdapter('ws-server-1');
+
+// Close all adapters
+await networkManager.closeAllAdapters();
+```
+
+Source: `packages/napcat-onebot/network/index.ts:86`
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Choose the right adapter type">
+    - **HTTP Server**: Simple RESTful API access
+    - **WebSocket Server**: Real-time bidirectional communication
+    - **HTTP Client**: Push events to external server
+    - **WebSocket Client**: Connect to existing WebSocket server
+    - **HTTP SSE**: One-way event streaming
+  </Accordion>
+
+  <Accordion title="Use array format for rich messages">
+    Array format is more structured and easier to parse:
+    ```json
+    {
+      "messagePostFormat": "array"
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Enable heartbeat for long connections">
+    Prevent connection timeout:
+    ```json
+    {
+      "enableHeart": true,
+      "heartInterval": 30000
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Set appropriate timeouts">
+    Prevent hanging requests:
+    ```json
+    {
+      "timeout": 5000
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="OneBot Protocol" icon="robot" href="/concepts/onebot-protocol">
+    Learn about OneBot 11 implementation
+  </Card>
+  <Card title="Architecture" icon="sitemap" href="/concepts/architecture">
+    Understand the core architecture
+  </Card>
+  <Card title="Configuration" icon="gear" href="/config/napcat-config">
+    Full configuration reference
+  </Card>
+</CardGroup>

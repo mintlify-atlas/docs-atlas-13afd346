@@ -1,0 +1,554 @@
+---
+title: User API
+description: NTQQUserApi methods for user information and profile management
+---
+
+## Overview
+
+The `NTQQUserApi` class provides methods for retrieving user information, managing profiles, handling conversions between UID/UIN, and accessing user-related services.
+
+## User Information
+
+### getUserDetailInfo
+
+Get detailed information about a user.
+
+```typescript
+async getUserDetailInfo(
+  uid: string,
+  no_cache: boolean = false
+): Promise<User>
+```
+
+<ParamField path="uid" type="string" required>
+  User UID
+</ParamField>
+
+<ParamField path="no_cache" type="boolean" default="false">
+  Whether to fetch from server instead of cache
+</ParamField>
+
+<ResponseField name="return" type="User">
+  User object with detailed information
+</ResponseField>
+
+**Example:**
+
+```typescript
+const user = await core.apis.UserApi.getUserDetailInfo('u_abc123');
+console.log('Nickname:', user.nick);
+console.log('QQ Level:', user.qqLevel);
+console.log('Age:', user.age);
+```
+
+### fetchUserDetailInfo
+
+Fetch user detail from specific source.
+
+```typescript
+async fetchUserDetailInfo(
+  uid: string,
+  mode: UserDetailSource = UserDetailSource.KDB
+)
+```
+
+<ParamField path="uid" type="string" required>
+  User UID
+</ParamField>
+
+<ParamField path="mode" type="UserDetailSource" default="UserDetailSource.KDB">
+  Data source: KDB (cache) or KSERVER (server)
+</ParamField>
+
+<ResponseField name="return" type="UserDetailInfo">
+  Detailed user profile information
+</ResponseField>
+
+### getCoreAndBaseInfo
+
+Get core and basic information for multiple users.
+
+```typescript
+async getCoreAndBaseInfo(
+  uids: string[]
+): Promise<Map<string, UserInfo>>
+```
+
+<ParamField path="uids" type="string[]" required>
+  Array of user UIDs
+</ParamField>
+
+<ResponseField name="return" type="Map<string, UserInfo>">
+  Map of UID to user information
+</ResponseField>
+
+**Example:**
+
+```typescript
+const users = await core.apis.UserApi.getCoreAndBaseInfo([
+  'u_user1',
+  'u_user2',
+  'u_user3'
+]);
+
+users.forEach((info, uid) => {
+  console.log(`${uid}: ${info.nick}`);
+});
+```
+
+## UID/UIN Conversion
+
+### getUidByUinV2
+
+Convert UIN to UID.
+
+```typescript
+async getUidByUinV2(uin: string): Promise<string>
+```
+
+<ParamField path="uin" type="string" required>
+  User UIN (QQ number)
+</ParamField>
+
+<ResponseField name="return" type="string">
+  User UID, or empty string if not found
+</ResponseField>
+
+**Example:**
+
+```typescript
+const uid = await core.apis.UserApi.getUidByUinV2('123456789');
+if (uid) {
+  console.log('UID:', uid);
+}
+```
+
+### getUinByUidV2
+
+Convert UID to UIN.
+
+```typescript
+async getUinByUidV2(uid: string): Promise<string>
+```
+
+<ParamField path="uid" type="string" required>
+  User UID
+</ParamField>
+
+<ResponseField name="return" type="string">
+  User UIN (QQ number), or '0' if not found
+</ResponseField>
+
+**Example:**
+
+```typescript
+const uin = await core.apis.UserApi.getUinByUidV2('u_abc123');
+if (uin !== '0') {
+  console.log('QQ:', uin);
+}
+```
+
+## Profile Management
+
+### modifySelfProfile
+
+Modify bot's own profile.
+
+```typescript
+async modifySelfProfile(param: ModifyProfileParams)
+```
+
+<ParamField path="param" type="ModifyProfileParams" required>
+  Object containing profile fields to modify
+</ParamField>
+
+**Example:**
+
+```typescript
+await core.apis.UserApi.modifySelfProfile({
+  nick: 'My Bot',
+  longNick: 'This is my bot description',
+  // ... other profile fields
+});
+```
+
+### setLongNick
+
+Set bot's signature/personal description.
+
+```typescript
+async setLongNick(longNick: string)
+```
+
+<ParamField path="longNick" type="string" required>
+  Signature text
+</ParamField>
+
+**Example:**
+
+```typescript
+await core.apis.UserApi.setLongNick('I am a helpful QQ bot!');
+```
+
+### setQQAvatar
+
+Set bot's QQ avatar.
+
+```typescript
+async setQQAvatar(
+  filePath: string
+): Promise<{ result: number, errMsg: string }>
+```
+
+<ParamField path="filePath" type="string" required>
+  Path to image file
+</ParamField>
+
+<ResponseField name="return" type="{ result: number, errMsg: string }">
+  Result code and error message
+</ResponseField>
+
+**Example:**
+
+```typescript
+const result = await core.apis.UserApi.setQQAvatar('/path/to/avatar.png');
+if (result.result === 0) {
+  console.log('Avatar updated successfully');
+} else {
+  console.error('Failed:', result.errMsg);
+}
+```
+
+## Online Status
+
+### setSelfOnlineStatus
+
+Set bot's online status.
+
+```typescript
+async setSelfOnlineStatus(
+  status: number,
+  extStatus: number,
+  batteryStatus: number
+)
+```
+
+<ParamField path="status" type="number" required>
+  Status code (online, away, busy, etc.)
+</ParamField>
+
+<ParamField path="extStatus" type="number" required>
+  Extended status code
+</ParamField>
+
+<ParamField path="batteryStatus" type="number" required>
+  Battery status
+</ParamField>
+
+**Example:**
+
+```typescript
+// Set to online
+await core.apis.UserApi.setSelfOnlineStatus(1, 0, 0);
+```
+
+### setDiySelfOnlineStatus
+
+Set custom online status with emoji and text.
+
+```typescript
+async setDiySelfOnlineStatus(
+  faceId: string,
+  wording: string,
+  faceType: string
+)
+```
+
+<ParamField path="faceId" type="string" required>
+  Emoji/face ID
+</ParamField>
+
+<ParamField path="wording" type="string" required>
+  Status text
+</ParamField>
+
+<ParamField path="faceType" type="string" required>
+  Face type identifier
+</ParamField>
+
+**Example:**
+
+```typescript
+await core.apis.UserApi.setDiySelfOnlineStatus(
+  '123',
+  'Working on something awesome',
+  '1'
+);
+```
+
+## Profile Likes
+
+### like
+
+Send like(s) to a user's profile.
+
+```typescript
+async like(
+  uid: string,
+  count: number = 1
+): Promise<{ result: number, errMsg: string, succCounts: number }>
+```
+
+<ParamField path="uid" type="string" required>
+  Target user UID
+</ParamField>
+
+<ParamField path="count" type="number" default="1">
+  Number of likes to send (1-20)
+</ParamField>
+
+<ResponseField name="return" type="{ result: number, errMsg: string, succCounts: number }">
+  Result with success count
+</ResponseField>
+
+**Example:**
+
+```typescript
+const result = await core.apis.UserApi.like('u_abc123', 10);
+console.log(`Sent ${result.succCounts} likes`);
+```
+
+### getProfileLike
+
+Get profile like information.
+
+```typescript
+async getProfileLike(
+  uid: string,
+  start: number,
+  count: number,
+  type: number = 2
+)
+```
+
+<ParamField path="uid" type="string" required>
+  User UID
+</ParamField>
+
+<ParamField path="start" type="number" required>
+  Starting index
+</ParamField>
+
+<ParamField path="count" type="number" required>
+  Number of records to fetch
+</ParamField>
+
+<ParamField path="type" type="number" default="2">
+  Type: 2 for self, 1 for others
+</ParamField>
+
+## Cookies & Authentication
+
+### getCookies
+
+Get cookies for a specific domain.
+
+```typescript
+async getCookies(domain: string): Promise<{ [key: string]: string }>
+```
+
+<ParamField path="domain" type="string" required>
+  Domain name (e.g., 'qun.qq.com')
+</ParamField>
+
+<ResponseField name="return" type="{ [key: string]: string }">
+  Object containing cookies
+</ResponseField>
+
+**Example:**
+
+```typescript
+const cookies = await core.apis.UserApi.getCookies('qun.qq.com');
+console.log('p_skey:', cookies.p_skey);
+```
+
+### getPSkey
+
+Get PSkey for domains.
+
+```typescript
+async getPSkey(domainList: string[])
+```
+
+<ParamField path="domainList" type="string[]" required>
+  Array of domain names
+</ParamField>
+
+<ResponseField name="return" type="{ domainPskeyMap: Map<string, string> }">
+  Map of domain to PSkey
+</ResponseField>
+
+**Example:**
+
+```typescript
+const result = await core.apis.UserApi.getPSkey(['qun.qq.com', 'ti.qq.com']);
+const pskey = result.domainPskeyMap.get('qun.qq.com');
+```
+
+### getSKey
+
+Get SKey for authentication.
+
+```typescript
+async getSKey(): Promise<string | undefined>
+```
+
+<ResponseField name="return" type="string | undefined">
+  SKey string if successful
+</ResponseField>
+
+### getQzoneCookies
+
+Get cookies specifically for Qzone.
+
+```typescript
+async getQzoneCookies(): Promise<{ [key: string]: string }>
+```
+
+<ResponseField name="return" type="{ [key: string]: string }">
+  Qzone cookies
+</ResponseField>
+
+### forceFetchClientKey
+
+Force fetch client key.
+
+```typescript
+async forceFetchClientKey()
+```
+
+<ResponseField name="return" type="{ result: number, clientKey: string, keyIndex: string }">
+  Client key information
+</ResponseField>
+
+## Recent Contacts
+
+### getRecentContactList
+
+Get list of recent contacts.
+
+```typescript
+async getRecentContactList()
+```
+
+<ResponseField name="return" type="RecentContact[]">
+  Array of recent contact objects
+</ResponseField>
+
+### getRecentContactListSnapShot
+
+Get snapshot of recent contacts.
+
+```typescript
+async getRecentContactListSnapShot(count: number)
+```
+
+<ParamField path="count" type="number" required>
+  Number of contacts to retrieve
+</ParamField>
+
+### getRecentContactListSync
+
+Get synced recent contact list.
+
+```typescript
+async getRecentContactListSync()
+```
+
+### getRecentContactListSyncLimit
+
+Get synced recent contacts with limit.
+
+```typescript
+async getRecentContactListSyncLimit(count: number)
+```
+
+<ParamField path="count" type="number" required>
+  Maximum number of contacts
+</ParamField>
+
+## Utility Methods
+
+### getUserDetailInfoByUin
+
+Get user detail by UIN directly.
+
+```typescript
+async getUserDetailInfoByUin(Uin: string)
+```
+
+<ParamField path="Uin" type="string" required>
+  User UIN (QQ number)
+</ParamField>
+
+### getBuddyRecommendContactArkJson
+
+Get friend recommendation card in Ark JSON format.
+
+```typescript
+async getBuddyRecommendContactArkJson(
+  uin: string,
+  sencenID: string = ''
+)
+```
+
+<ParamField path="uin" type="string" required>
+  User UIN
+</ParamField>
+
+<ParamField path="sencenID" type="string" default="''">
+  Scene ID
+</ParamField>
+
+### getRobotUinRange
+
+Get robot UIN range information.
+
+```typescript
+async getRobotUinRange(): Promise<Array<unknown>>
+```
+
+<ResponseField name="return" type="Array<unknown>">
+  Array of robot UIN range data
+</ResponseField>
+
+## Complete Example
+
+```typescript
+import { NapCatCore } from '@/napcat-core';
+
+async function manageUserProfile(core: NapCatCore) {
+  // Get user info by UID
+  const user = await core.apis.UserApi.getUserDetailInfo('u_abc123', true);
+  console.log(`User: ${user.nick}`);
+  console.log(`Level: ${user.qqLevel}`);
+  
+  // Convert between UID and UIN
+  const uin = await core.apis.UserApi.getUinByUidV2('u_abc123');
+  const uid = await core.apis.UserApi.getUidByUinV2('123456789');
+  
+  // Update bot profile
+  await core.apis.UserApi.setLongNick('I am a helpful bot!');
+  await core.apis.UserApi.setQQAvatar('/path/to/avatar.png');
+  
+  // Set online status
+  await core.apis.UserApi.setSelfOnlineStatus(1, 0, 0);
+  
+  // Send likes to user
+  await core.apis.UserApi.like('u_abc123', 10);
+  
+  // Get recent contacts
+  const recent = await core.apis.UserApi.getRecentContactList();
+  console.log(`${recent.length} recent contacts`);
+}
+```
