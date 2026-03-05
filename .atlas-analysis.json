@@ -1,0 +1,170 @@
+{
+  "projectType": "framework",
+  "projectName": "NapCat",
+  "projectDescription": "Modern protocol-side framework based on NTQQ for building QQ bots with OneBot 11 standard support",
+  "theme": "aspen",
+  "primaryColor": "#91a8c6",
+  "lightColor": "#cdd3df",
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/architecture",
+              "concepts/onebot-protocol",
+              "concepts/working-environments",
+              "concepts/adapters"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "config/napcat-config",
+              "config/onebot-config",
+              "config/network-adapters",
+              "config/webui"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/deployment",
+              "guides/login-methods",
+              "guides/message-handling",
+              "guides/plugin-development",
+              "guides/packet-inspection"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/native-packet-handler",
+              "advanced/database-api",
+              "advanced/bypass-mode",
+              "advanced/custom-adapters"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core APIs",
+            "pages": [
+              "api/core/overview",
+              "api/core/message",
+              "api/core/group",
+              "api/core/friend",
+              "api/core/user",
+              "api/core/file",
+              "api/core/system"
+            ]
+          },
+          {
+            "group": "OneBot Actions",
+            "pages": [
+              "api/onebot/overview",
+              "api/onebot/message-actions",
+              "api/onebot/group-actions",
+              "api/onebot/user-actions",
+              "api/onebot/file-actions",
+              "api/onebot/extended-actions"
+            ]
+          },
+          {
+            "group": "Events",
+            "pages": [
+              "api/events/overview",
+              "api/events/message-events",
+              "api/events/notice-events",
+              "api/events/request-events"
+            ]
+          },
+          {
+            "group": "Network",
+            "pages": [
+              "api/network/http",
+              "api/network/websocket",
+              "api/network/webhook"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Resources",
+        "groups": [
+          {
+            "group": "Resources",
+            "pages": [
+              "resources/troubleshooting",
+              "resources/faq",
+              "resources/migration-guide",
+              "resources/contributing",
+              "resources/community"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "OneBot 11 protocol implementation",
+    "Multiple network adapter support (HTTP, WebSocket)",
+    "Built-in WebUI for management and monitoring",
+    "Native packet handling and inspection",
+    "Plugin system for extensibility",
+    "Multi-environment support (Shell and Framework modes)",
+    "Database API with SQLite support",
+    "QR code and password login support",
+    "Message processing with rich media support",
+    "Group and friend management APIs"
+  ],
+  "publicApiSurface": [
+    "NapCatCore - Main core class",
+    "NTQQMsgApi - Message operations",
+    "NTQQGroupApi - Group management",
+    "NTQQFriendApi - Friend management",
+    "NTQQUserApi - User operations",
+    "NTQQFileApi - File operations",
+    "NTQQSystemApi - System utilities",
+    "NTQQDatabaseApi - Database access",
+    "NTQQPacketApi - Packet handling",
+    "OneBotAction - OneBot 11 actions",
+    "send_msg - Send message",
+    "send_private_msg - Send private message",
+    "send_group_msg - Send group message",
+    "delete_msg - Delete message",
+    "get_msg - Get message",
+    "get_forward_msg - Get forward message",
+    "send_like - Send like",
+    "set_group_kick - Kick group member",
+    "set_group_ban - Ban group member",
+    "set_group_admin - Set group admin",
+    "set_group_card - Set group card",
+    "set_group_name - Set group name",
+    "set_group_leave - Leave group",
+    "get_group_info - Get group info",
+    "get_group_list - Get group list",
+    "get_group_member_info - Get group member info",
+    "get_group_member_list - Get group member list",
+    "set_friend_add_request - Handle friend request",
+    "set_group_add_request - Handle group request",
+    "get_login_info - Get login info",
+    "get_stranger_info - Get stranger info",
+    "get_friend_list - Get friend list",
+    "get_version_info - Get version info"
+  ]
+}
